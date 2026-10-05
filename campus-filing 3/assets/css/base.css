@@ -1,0 +1,105 @@
+/* Campus Filing: design tokens, reset, and typography.
+   Loaded first on every page. Nothing here is page specific. */
+
+:root {
+  --ink: #101519;
+  --slate: #3A464D;
+  --muted: #6E7A80;
+  --navy: #123B5E;
+  --navy-dark: #0D2E4A;
+  --blue: #1E6BA8;
+  --blue-soft: #E8F0F7;
+  --forest: #1B6B4C;
+  --forest-dark: #155840;
+  --sage: #E4EFE8;
+  --amber: #8A5A0B;
+  --amber-soft: #FBF1DE;
+  --rust: #9A3324;
+  --rust-soft: #FAEAE7;
+  --paper: #FAF9F6;
+  --sand: #EFEDE7;
+  --line: #DCD8CF;
+  --line-soft: #E9E6DF;
+  --white: #FFFFFF;
+  --radius: 6px;
+  --shadow: 0 1px 2px rgba(16, 21, 25, .06), 0 4px 12px rgba(16, 21, 25, .04);
+  --measure: 68ch;
+  --wide: 1200px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -.012em;
+  line-height: 1.22;
+  margin: 0 0 .5rem;
+}
+
+h1 { font-size: 40px; }
+h2 { font-size: 28px; }
+h3 { font-size: 20px; }
+h4 { font-size: 16px; font-family: "Public Sans", sans-serif; font-weight: 600; letter-spacing: 0; }
+
+p { margin: 0 0 1rem; max-width: var(--measure); }
+
+a { color: var(--navy); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--blue); }
+
+ul, ol { max-width: var(--measure); }
+
+strong { font-weight: 600; }
+
+hr { border: none; border-top: 1px solid var(--line); margin: 2.5rem 0; }
+
+code, .formref {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: .86em;
+  background: var(--sand);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--ink);
+  color: var(--white);
+  padding: 10px 16px;
+  z-index: 100;
+}
+
+.skip:focus { left: 8px; top: 8px; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

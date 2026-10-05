@@ -1,0 +1,13 @@
+.DS_Store
+Thumbs.db
+
+# Local secrets and environment settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and local logs
+node_modules/
+*.log

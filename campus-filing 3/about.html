@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>About and methodology | Campus Filing</title>
+<meta name="description" content="The team, the course, the problem being sized, and the data sources behind Campus Filing." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="About and methodology | Campus Filing" />
+<meta property="og:description" content="The team, the course, the problem being sized, and the data sources behind Campus Filing." />
+<meta property="og:image" content="assets/og.png" />
+<meta property="og:site_name" content="Campus Filing" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<meta name="theme-color" content="#101519" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/css/base.css" />
+<link rel="stylesheet" href="assets/css/layout.css" />
+<link rel="stylesheet" href="assets/css/components.css" />
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="wordmark" href="index.html">Campus <em>Filing</em></a>
+    <button class="nav-toggle" aria-expanded="false" aria-controls="nav">Menu</button>
+    <nav class="site-nav" id="nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="how-it-works.html">How it works</a>
+      <a href="guides/index.html">Guides</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="faq.html">FAQ</a>
+      <a class="nav-cta" href="app/file.html">Build my filing plan</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">About the project</p>
+    <h1>Why a tax site, and how we sized the problem</h1>
+    <p>Campus Filing is an information systems capstone at the George Washington University School of Business.</p>
+  </div>
+</div>
+
+<main id="main">
+<section class="band">
+<div class="wrap split">
+  <div>
+    <h2>The problem</h2>
+    <p>Students occupy a narrow band of tax situations that consumer software handles badly. They are usually dependents, which changes the standard deduction in a way few products explain. They receive a 1098-T that belongs on someone else's return. They frequently have scholarship money that is taxable and gig income with nothing withheld. Many attend school in a state they are not a resident of.</p>
+    <p>None of that is complicated once explained. Almost none of it is explained anywhere a student will find it.</p>
+
+    <h2>The consequence</h2>
+    <p>Two failure modes. Students who are owed money do not file and lose it permanently after three years. Students who do file get routed into paid tiers for forms that are free elsewhere, or make errors that cost them a credit or trigger a rejected return.</p>
+
+    <h2>How the product answers it</h2>
+    <p>A guided walkthrough that produces a specific, printable plan rather than general advice, paired with reference guides for the situations that recur. The tool deliberately stops short of preparing a return, because the free filing infrastructure already exists and the gap is knowing how to use it.</p>
+
+    <h2>Methodology and data sources</h2>
+    <p>The analysis component sizes the affected population and the dollar value at stake rather than asserting either. Sources used:</p>
+    <ul>
+      <li>IRS Statistics of Income, individual returns and ZIP code data, for filing rates and refund distributions by income band</li>
+      <li>IRS Free File program statistics and the IRS Direct File closure notice of November 2025, for free-filing uptake against the eligible population and for what the shutdown removed</li>
+      <li>IPEDS enrollment data, for the undergraduate and international student population by institution</li>
+      <li>National Society of Accountants fee survey, for the cost of the paid alternative</li>
+      <li>Federal Trade Commission filings in the matter of Intuit, for documentation of free-tier practices</li>
+    </ul>
+
+    <h2>Scope decisions worth defending</h2>
+    <p>Two choices were made deliberately and will look like gaps if not explained.</p>
+    <p>The tool does not give line-by-line entries such as "enter this on line 11a." Line numbers change between tax years and state forms renumber constantly, and instructing a user what to type on a specific line moves toward tax preparation rather than education. Forms and boxes are named in plain language instead.</p>
+    <p>The current build collects no personally identifying information and stores nothing. The account feature is scoped for a later phase with a schema designed first and synthetic data used for demonstration.</p>
+  </div>
+
+  <div>
+    <div class="card">
+      <h3>Course</h3>
+      <p>Information systems capstone, GW School of Business. The build demonstrates systems analysis, database design, front end development, and data analysis in one deliverable.</p>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Stack</h3>
+      <p>Static HTML, CSS, and vanilla JavaScript with no build step or framework dependency. Every tax figure resolves from a single constants module so annual updates touch one file.</p>
+      <p>Phase two adds authentication and a Postgres schema for year over year document storage.</p>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Accuracy</h3>
+      <p>Figures reflect tax year <span data-tax="year">2026</span> as published in IRS Revenue Procedure 2025-32. Dependency rules follow IRC section 152 and Publication 501. Education provisions follow Publication 970.</p>
+    </div>
+  </div>
+</div>
+</section>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="wordmark" href="index.html">Campus <em>Filing</em></a>
+        <p style="margin-top:10px;color:var(--slate);max-width:34ch">Tax guidance written for students and recent graduates, built as a capstone project at the George Washington University School of Business.</p>
+      </div>
+      <div>
+        <h4>Filing</h4>
+        <ul>
+          <li><a href="app/file.html">Start the walkthrough</a></li>
+          <li><a href="estimate.html">Refund estimator</a></li>
+          <li><a href="deadlines.html">Deadlines</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Guides</h4>
+        <ul>
+          <li><a href="guides/documents.html">Document checklist</a></li>
+          <li><a href="guides/international.html">International students</a></li>
+          <li><a href="guides/glossary.html">Glossary</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="about.html">About and methodology</a></li>
+          <li><a href="privacy.html">Privacy and security</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-legal">
+      <p>Campus Filing is a student project. It is educational software, not tax preparation, and it does not transmit returns. Figures reflect tax year <span data-tax="year">2026</span> rules published in IRS Revenue Procedure 2025-32.</p>
+      <p>Copyright 2026 Campus Filing, a student project at the George Washington University School of Business. Not affiliated with the Internal Revenue Service.</p>
+      </div>
+  </div>
+</footer>
+
+<script src="assets/js/tax-constants.js"></script>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

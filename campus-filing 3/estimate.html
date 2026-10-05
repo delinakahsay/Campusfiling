@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Refund estimator | Campus Filing</title>
+<meta name="description" content="Four questions, one number. A quick estimate of what a student filer gets back or owes for tax year 2026." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Refund estimator | Campus Filing" />
+<meta property="og:description" content="Four questions, one number. A quick estimate of what a student filer gets back or owes." />
+<meta property="og:image" content="assets/og.png" />
+<meta property="og:site_name" content="Campus Filing" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<meta name="theme-color" content="#101519" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/css/base.css" />
+<link rel="stylesheet" href="assets/css/layout.css" />
+<link rel="stylesheet" href="assets/css/components.css" />
+<style>
+.est-choice {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  background: var(--white);
+  margin-bottom: 8px;
+}
+.est-choice:hover { border-color: var(--blue); background: var(--blue-soft); }
+.est-choice input { margin: 4px 0 0; accent-color: var(--blue); }
+.est-choice small { display: block; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.est-choice:has(input:checked) { border-color: var(--navy); background: var(--blue-soft); }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="wordmark" href="index.html">Campus <em>Filing</em></a>
+    <button class="nav-toggle" aria-expanded="false" aria-controls="nav">Menu</button>
+    <nav class="site-nav" id="nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="how-it-works.html">How it works</a>
+      <a href="guides/index.html">Guides</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="faq.html">FAQ</a>
+      <a class="nav-cta" href="app/file.html">Build my filing plan</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Quick estimate</p>
+    <h1>Roughly what are you getting back?</h1>
+    <p>Four questions and a number, for tax year <span data-tax="year">2026</span>. Use rough figures if you do not have your forms yet.</p>
+  </div>
+</div>
+
+<main id="main">
+<section class="band">
+<div class="wrap split">
+
+  <div>
+    <form id="est-form" onsubmit="return false">
+      <div class="grid-fields">
+        <div class="field">
+          <label for="est-wages">Wages from jobs</label>
+          <small>Box 1 of your W-2, or your best guess</small>
+          <div class="money-wrap"><span>$</span><input type="number" id="est-wages" min="0" placeholder="0" /></div>
+        </div>
+        <div class="field">
+          <label for="est-withheld">Federal tax withheld</label>
+          <small>Box 2 of your W-2. This is the money you get back</small>
+          <div class="money-wrap"><span>$</span><input type="number" id="est-withheld" min="0" placeholder="0" /></div>
+        </div>
+        <div class="field">
+          <label for="est-gig">Gig or freelance profit</label>
+          <small>What you kept after expenses. Enter 0 if none</small>
+          <div class="money-wrap"><span>$</span><input type="number" id="est-gig" min="0" placeholder="0" /></div>
+        </div>
+      </div>
+
+      <fieldset style="border:none;padding:0;margin:8px 0 0">
+        <legend style="font-size:14px;font-weight:500;padding:0;margin-bottom:8px">Can your parents claim you as a dependent?</legend>
+        <label class="est-choice"><input type="radio" name="est-claimed" value="yes" /><span>Yes, or probably<small>Under 24, a full-time student, and your family covers more than half your costs</small></span></label>
+        <label class="est-choice"><input type="radio" name="est-claimed" value="no" /><span>No<small>You are 24 or older, or you pay more than half your own way</small></span></label>
+      </fieldset>
+
+      <div class="btn-row">
+        <button type="button" class="btn btn-green" id="est-run">Estimate my refund</button>
+        <span class="error" id="est-err"></span>
+      </div>
+    </form>
+
+    <div id="est-out" hidden style="margin-top:2rem"></div>
+  </div>
+
+  <div>
+    <div class="note">
+      <p><strong>What this leaves out</strong></p>
+      <p>Education credits, taxable scholarship money, investment income and losses, marketplace insurance reconciliation, and state tax. Those can move the number by hundreds of dollars in either direction.</p>
+      <p>Treat this as a ballpark, not a plan.</p>
+    </div>
+
+    <h3 style="margin-top:1.8rem">Two things it will show you</h3>
+    <p style="font-size:15px;color:var(--slate)">If you are claimed as a dependent, your standard deduction shrinks to your earned income plus <span data-tax="dependentEarnedBump">$450</span>, floored at <span data-tax="dependentFloor">$1,350</span>. Most students never see this explained anywhere.</p>
+    <p style="font-size:15px;color:var(--slate)">If you had gig income, self-employment tax appears as a separate line, along with the deduction for half of it. The tax is the number that surprises people, because nothing was withheld to cover it.</p>
+  </div>
+
+</div>
+</section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="wordmark" href="index.html">Campus <em>Filing</em></a>
+        <p style="margin-top:10px;color:var(--slate);max-width:34ch">Tax guidance written for students and recent graduates, built as a capstone project at the George Washington University School of Business.</p>
+      </div>
+      <div>
+        <h4>Filing</h4>
+        <ul>
+          <li><a href="app/file.html">Start the walkthrough</a></li>
+          <li><a href="estimate.html">Refund estimator</a></li>
+          <li><a href="deadlines.html">Deadlines</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Guides</h4>
+        <ul>
+          <li><a href="guides/documents.html">Document checklist</a></li>
+          <li><a href="guides/international.html">International students</a></li>
+          <li><a href="guides/glossary.html">Glossary</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="about.html">About and methodology</a></li>
+          <li><a href="privacy.html">Privacy and security</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-legal">
+      <p>Campus Filing is a student project. It is educational software, not tax preparation, and it does not transmit returns. Figures reflect tax year <span data-tax="year">2026</span> rules published in IRS Revenue Procedure 2025-32.</p>
+      <p>Copyright 2026 Campus Filing, a student project at the George Washington University School of Business. Not affiliated with the Internal Revenue Service.</p>
+      </div>
+  </div>
+</footer>
+
+<script src="assets/js/tax-constants.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/estimator.js"></script>
+</body>
+</html>

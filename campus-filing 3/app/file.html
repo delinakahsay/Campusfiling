@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Build my filing plan | Campus Filing</title>
+<meta name="description" content="A nine section walkthrough that produces a printable filing plan for a student tax return." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Start filing | Campus Filing" />
+<meta property="og:description" content="A nine section walkthrough that produces a printable filing plan for a student tax return." />
+<meta property="og:image" content="../assets/og.png" />
+<meta property="og:site_name" content="Campus Filing" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+<meta name="theme-color" content="#101519" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/css/base.css" />
+<link rel="stylesheet" href="../assets/css/layout.css" />
+<link rel="stylesheet" href="../assets/css/components.css" />
+<link rel="stylesheet" href="../assets/css/wizard.css" />
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="wordmark" href="../index.html">Campus <em>Filing</em></a>
+    <button class="nav-toggle" aria-expanded="false" aria-controls="nav">Menu</button>
+    <nav class="site-nav" id="nav" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="../how-it-works.html">How it works</a>
+      <a href="../guides/index.html">Guides</a>
+      <a href="../deadlines.html">Deadlines</a>
+      <a href="../faq.html">FAQ</a>
+      <a class="nav-cta" href="file.html" aria-current="page">Build my filing plan</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-head" style="padding:30px 0 26px">
+  <div class="wrap">
+    <p class="eyebrow">Tax year <span data-tax="year">2026</span>, due <span data-tax="deadline">April 15, 2027</span></p>
+    <h1 style="font-size:31px;margin-bottom:8px">Your filing walkthrough</h1>
+    <p>Refreshing or closing this tab clears your answers. Save your completed plan before you leave.</p>
+  </div>
+</div>
+
+<div class="app-shell" id="main">
+
+  <aside class="rail" aria-label="Walkthrough progress and summary">
+    <p class="mobile-progress" id="mobile-progress" role="status">Step 1 of 9 · Your status</p>
+    <details class="rail-disclosure" id="rail-disclosure" open>
+      <summary>View summary and sections</summary>
+      <div class="rail-content">
+    <p class="rail-title">Sections</p>
+    <ul class="steps" id="steps"></ul>
+
+    <div class="summary" aria-live="polite">
+      <h3>Running summary</h3>
+      <div class="summary-row"><span>Dependency</span><span id="sum-dep">Not answered</span></div>
+      <div class="summary-row"><span>Standard deduction</span><span id="sum-sd">Not calculated</span></div>
+      <div class="summary-row"><span>Total income</span><span id="sum-inc">$0</span></div>
+      <div class="summary-row"><span>Filing required</span><span id="sum-req">Not determined</span></div>
+      <div class="summary-row"><span>Returns to file</span><span id="sum-ret">Federal only</span></div>
+      <div class="summary-refund">
+        <div class="label">Estimated federal refund</div>
+        <div class="value" id="sum-refund">$0</div>
+        <div class="caveat">Estimate only. Your software will compute the real number.</div>
+      </div>
+    </div>
+      </div>
+    </details>
+  </aside>
+
+  <main>
+
+    <section class="panel" id="p0">
+      <div class="panel-head">
+        <div class="step-of">Section 1 of 9</div>
+        <h2>Your status for tax purposes</h2>
+        <p>This first answer changes everything that follows. Immigration status and tax status are not the same thing, and getting this wrong is the hardest error to undo.</p>
+      </div>
+
+      <fieldset>
+        <legend>Which describes you?</legend>
+        <p class="help">If you are on an F-1 or J-1 visa and have been in the United States five calendar years or less, you are a nonresident alien for tax purposes even though you live here full time.</p>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="status" value="citizen" /><span class="choice-text">US citizen or permanent resident<small>Born here, naturalized, or hold a green card</small></span></label>
+          <label class="choice"><input type="radio" name="status" value="resident" /><span class="choice-text">Visa holder in the US more than five years<small>You have passed the substantial presence test and file like a citizen</small></span></label>
+          <label class="choice"><input type="radio" name="status" value="nra" /><span class="choice-text">F-1 or J-1 student, five years or less<small>Nonresident alien for tax purposes</small></span></label>
+          <label class="choice"><input type="radio" name="status" value="unsure" /><span class="choice-text">I am not sure<small>The walkthrough will point you to the substantial presence test</small></span></label>
+        </div>
+      </fieldset>
+
+      <div class="note note-stop" id="nra-warn" hidden>
+        <strong>Stop here.</strong> You file <span class="formref">Form 1040-NR</span> and <span class="formref">Form 8843</span>, not Form 1040. TurboTax and FreeTaxUSA do not support nonresident returns and will silently produce a wrong filing. Read the <a href="../guides/international.html">international students guide</a>, then contact your international student office, which usually provides free Sprintax access.
+      </div>
+
+      <div class="note note-warn" id="spt-warn" hidden>
+        We will flag this in your plan rather than guessing. The substantial presence test counts all your days in the US this year, one third of last year's, and one sixth of the year before. Reaching 183 makes you a resident for tax purposes. F-1 and J-1 students do not count any days for their first five calendar years. If that describes you, read the <a href="../guides/international.html">international students guide</a> before continuing.
+      </div>
+
+      <fieldset>
+        <legend>Do you have a Social Security number or ITIN?</legend>
+        <p class="help">You need one to file. This tool never asks for the number itself.</p>
+        <div class="choices two">
+          <label class="choice"><input type="radio" name="ssn" value="yes" /><span class="choice-text">Yes</span></label>
+          <label class="choice"><input type="radio" name="ssn" value="no" /><span class="choice-text">No, or not sure</span></label>
+        </div>
+      </fieldset>
+
+      <div class="panel-actions"><div class="spacer"></div><span class="error" role="alert" tabindex="-1" data-err="0"></span><button type="button" class="btn" data-next="0">Continue</button></div>
+    </section>
+
+    <section class="panel" id="p1" hidden>
+      <div class="panel-head">
+        <div class="step-of">Section 2 of 9</div>
+        <h2>About you</h2>
+        <p>Age and marital status drive the dependency tests and several credits.</p>
+      </div>
+
+      <div class="grid-fields">
+        <div class="field">
+          <label for="age">Age on December 31, <span data-tax="year">2026</span></label>
+          <small>Use your age at the end of the year, not today</small>
+          <input type="number" id="age" min="13" max="99" placeholder="20" />
+        </div>
+        <div class="field">
+          <label for="year">Year of study</label>
+          <small>Affects which education credit applies</small>
+          <select id="year">
+            <option value="">Select</option>
+            <option value="1">First year</option>
+            <option value="2">Second year</option>
+            <option value="3">Third year</option>
+            <option value="4">Fourth year</option>
+            <option value="5">Fifth year or beyond</option>
+            <option value="grad">Graduate student</option>
+          </select>
+        </div>
+      </div>
+
+      <fieldset style="margin-top:22px">
+        <legend>Marital status on December 31</legend>
+        <div class="choices two">
+          <label class="choice"><input type="radio" name="marital" value="single" /><span class="choice-text">Single</span></label>
+          <label class="choice"><input type="radio" name="marital" value="married" /><span class="choice-text">Married</span></label>
+        </div>
+      </fieldset>
+
+      <div class="note note-warn" id="married-warn" hidden>
+        If you are married and file a joint return with your spouse, your parents generally cannot claim you, with one narrow exception where the joint return is filed only to claim a refund.
+      </div>
+
+      <fieldset>
+        <legend>Were you a full-time student for at least five months?</legend>
+        <p class="help">The months do not need to be consecutive. A normal fall and spring semester at twelve or more credits counts.</p>
+        <div class="choices two">
+          <label class="choice"><input type="radio" name="fulltime" value="yes" /><span class="choice-text">Yes</span></label>
+          <label class="choice"><input type="radio" name="fulltime" value="no" /><span class="choice-text">No</span></label>
+        </div>
+      </fieldset>
+
+      <div class="panel-actions"><button type="button" class="btn btn-ghost" data-back="1">Back</button><div class="spacer"></div><span class="error" role="alert" tabindex="-1" data-err="1"></span><button type="button" class="btn" data-next="1">Continue</button></div>
+    </section>
+
+    <section class="panel" id="p2" hidden>
+      <div class="panel-head">
+        <div class="step-of">Section 3 of 9</div>
+        <h2>Can someone claim you</h2>
+        <p>You never claim yourself as a dependent. Your parents claim you, and you acknowledge it by checking a box on page one of Form 1040. These three questions decide whether that box gets checked.</p>
+      </div>
+
+      <fieldset>
+        <legend>Did you pay more than half of your own support?</legend>
+        <p class="help">Support means housing, food, tuition, medical care, transportation, and clothing for the whole year. Scholarships you received as a student do not count as support you provided. Student loans in your own name do count as your support.</p>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="support" value="no" /><span class="choice-text">No, my family covered more than half<small>The usual answer for a student living at home or on a family funded meal plan</small></span></label>
+          <label class="choice"><input type="radio" name="support" value="yes" /><span class="choice-text">Yes, I covered more than half myself<small>Wages and your own loans paid for most of the year</small></span></label>
+          <label class="choice"><input type="radio" name="support" value="unsure" /><span class="choice-text">I am not sure<small>Treated as a dependent for now, since that is the more common answer</small></span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Where did you live for more than half the year?</legend>
+        <p class="help">Time away at school counts as living at your parents' home. A dorm does not break this test.</p>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="lived" value="parents" /><span class="choice-text">My parents' home, including time away at school</span></label>
+          <label class="choice"><input type="radio" name="lived" value="own" /><span class="choice-text">My own place, independent of my parents year round</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Have you confirmed with your parents whether they are claiming you?</legend>
+        <p class="help">If you both claim, the second return filed gets rejected and has to go in on paper. One conversation prevents a two month delay.</p>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="confirmed" value="claiming" /><span class="choice-text">Yes, they are claiming me</span></label>
+          <label class="choice"><input type="radio" name="confirmed" value="not" /><span class="choice-text">Yes, they are not claiming me</span></label>
+          <label class="choice"><input type="radio" name="confirmed" value="no" /><span class="choice-text">Not yet<small>Do this before you submit anything</small></span></label>
+        </div>
+      </fieldset>
+
+      <div class="note" id="dep-verdict" hidden></div>
+
+      <div class="panel-actions"><button type="button" class="btn btn-ghost" data-back="2">Back</button><div class="spacer"></div><span class="error" role="alert" tabindex="-1" data-err="2"></span><button type="button" class="btn" data-next="2">Continue</button></div>
+    </section>
+
+    <section class="panel" id="p3" hidden>
+      <div class="panel-head">
+        <div class="step-of">Section 4 of 9</div>
+        <h2>Upload what you have</h2>
+        <p>Drop in any tax forms you have received. Recognized filenames load sample values into the money questions ahead of you.</p>
+      </div>
+
+      <div class="note">
+        <strong>Prototype behavior.</strong> This build does not read documents. It matches the filename and loads canned sample figures so the interaction can be demonstrated. Files never leave your browser and nothing is uploaded to a server. Name a test file with w2, 1098t, 1098e, 1099nec, 1099int, or 1095a in the filename to see sample values load into the sections ahead. Replace them with your real numbers.
+      </div>
+
+      <div class="drop" id="drop">
+        <p>Drag files here, or <button class="btn btn-ghost btn-sm" id="browse" type="button">browse your computer</button></p>
+        <small>PDF, JPG, PNG, or HEIC. Most schools and employers post these to a portal rather than mailing them.</small>
+        <input type="file" id="files" multiple accept=".pdf,.jpg,.jpeg,.png,.heic" hidden />
+      </div>
+
+      <ul class="filelist" id="filelist"></ul>
+
+      <div class="note note-good" id="extract-note" hidden></div>
+
+      <div class="panel-actions"><button type="button" class="btn btn-ghost" data-back="3">Back</button><div class="spacer"></div><span class="error" role="alert" tabindex="-1" data-err="3"></span><button type="button" class="btn" data-next="3">Continue</button></div>
+    </section>
+
+    <section class="panel" id="p4" hidden>
+      <div class="panel-head">
+        <div class="step-of">Section 5 of 9</div>
+        <h2>Money that came in</h2>
+        <p>Enter every source, even small ones. A single $40 interest form left out gets your return corrected by the IRS six months later. Put zero where something does not apply.</p>
+      </div>
+
+      <fieldset>
+        <legend>Employment</legend>
+        <div class="grid-fields">
+          <div class="field">
+            <label for="w2wage">W-2 wages, box 1</label>
+            <small>Campus job, internship, retail, restaurant</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="w2wage" min="0" placeholder="0" /></div>
+            <div class="prefill-tag" data-tag="w2wage">Filled from your W-2</div>
+          </div>
+          <div class="field">
+            <label for="w2fed">Federal tax withheld, box 2</label>
+            <small>Tax already prepaid. Whatever exceeds what you owe comes back</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="w2fed" min="0" placeholder="0" /></div>
+            <div class="prefill-tag" data-tag="w2fed">Filled from your W-2</div>
+          </div>
+          <div class="field">
+            <label for="w2state">State tax withheld, box 17</label>
+            <small>Leave at zero if your state has no income tax</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="w2state" min="0" placeholder="0" /></div>
+            <div class="prefill-tag" data-tag="w2state">Filled from your W-2</div>
+          </div>
+          <div class="field">
+            <label for="tips">Cash tips not on a W-2</label>
+            <small>Babysitting, serving, delivery paid through an app</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="tips" min="0" placeholder="0" /></div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Self-employment and gig work</legend>
+        <p class="help">Net profit means what you kept after expenses. Mileage, phone, and supplies come off the top. This is the number that triggers self-employment tax.</p>
+        <div class="grid-fields">
+          <div class="field">
+            <label for="segross">Gross gig income</label>
+            <small>DoorDash, Uber, tutoring, freelance design, resale</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="segross" min="0" placeholder="0" /></div>
+            <div class="prefill-tag" data-tag="segross">Filled from your 1099-NEC</div>
+          </div>
+          <div class="field">
+            <label for="seexp">Business expenses</label>
+            <small>Mileage at the standard rate, supplies, platform fees</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="seexp" min="0" placeholder="0" /></div>
+          </div>
+        </div>
+        <div class="note note-warn" id="se-warn" hidden></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Investment and other income</legend>
+        <div class="grid-fields">
+          <div class="field">
+            <label for="interest">Interest, 1099-INT</label>
+            <small>Savings accounts, CDs, treasury bills</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="interest" min="0" placeholder="0" /></div>
+            <div class="prefill-tag" data-tag="interest">Filled from your 1099-INT</div>
+          </div>
+          <div class="field">
+            <label for="dividends">Dividends, 1099-DIV</label>
+            <small>Brokerage or index fund payouts</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="dividends" min="0" placeholder="0" /></div>
+          </div>
+          <div class="field">
+            <label for="gains">Stock or crypto gain or loss, 1099-B</label>
+            <small>Any sale counts. Enter a loss as a negative number</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="gains" placeholder="0" /></div>
+          </div>
+          <div class="field">
+            <label for="unemp">Unemployment, 1099-G</label>
+            <small>Fully taxable at the federal level</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="unemp" min="0" placeholder="0" /></div>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="panel-actions"><button type="button" class="btn btn-ghost" data-back="4">Back</button><div class="spacer"></div><span class="error" role="alert" tabindex="-1" data-err="4"></span><button type="button" class="btn" data-next="4">Continue</button></div>
+    </section>
+
+    <section class="panel" id="p5" hidden>
+      <div class="panel-head">
+        <div class="step-of">Section 6 of 9</div>
+        <h2>School money</h2>
+        <p>This is where students lose the most money and make the most errors. Scholarship dollars above tuition are taxable income, and the education credit usually belongs to whoever claims you.</p>
+      </div>
+
+      <fieldset>
+        <legend>From your 1098-T</legend>
+        <p class="help">Your bursar posts this in January. Box 1 is what was paid toward qualified tuition and fees. Box 5 is scholarships and grants that were applied.</p>
+        <div class="grid-fields">
+          <div class="field">
+            <label for="tuition">Box 1, qualified tuition and fees paid</label>
+            <div class="money-wrap"><span>$</span><input type="number" id="tuition" min="0" placeholder="0" /></div>
+            <div class="prefill-tag" data-tag="tuition">Filled from your 1098-T</div>
+          </div>
+          <div class="field">
+            <label for="scholarship">Box 5, scholarships and grants</label>
+            <div class="money-wrap"><span>$</span><input type="number" id="scholarship" min="0" placeholder="0" /></div>
+            <div class="prefill-tag" data-tag="scholarship">Filled from your 1098-T</div>
+          </div>
+          <div class="field">
+            <label for="books">Books, supplies, and required equipment</label>
+            <small>Counts toward the credit but never appears on the 1098-T</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="books" min="0" placeholder="0" /></div>
+          </div>
+          <div class="field">
+            <label for="roomboard">Room and board paid from scholarship funds</label>
+            <small>Never qualifies for a credit and makes scholarship money taxable</small>
+            <div class="money-wrap"><span>$</span><input type="number" id="roomboard" min="0" placeholder="0" /></div>
+          </div>
+        </div>
+        <div class="note note-warn" id="sch-warn" hidden></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Student loan interest paid, 1098-E</legend>
+        <p class="help">Deductible up to <span data-tax="studentLoanInterestCap">$2,500</span> even if you do not itemize, but only if you are not claimed as a dependent and the loan is in your name.</p>
+        <div class="grid-fields">
+          <div class="field">
+            <label for="loanint">Interest paid this year</label>
+            <div class="money-wrap"><span>$</span><input type="number" id="loanint" min="0" placeholder="0" /></div>
+            <div class="prefill-tag" data-tag="loanint">Filled from your 1098-E</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Have you or your parents claimed the American Opportunity Credit before?</legend>
+        <p class="help">It has a four year lifetime limit per student. Years your parents claimed it for you count against your total.</p>
+        <div class="choices two">
+          <label class="choice"><input type="radio" name="aotc" value="0" /><span class="choice-text">Never</span></label>
+          <label class="choice"><input type="radio" name="aotc" value="1" /><span class="choice-text">One year</span></label>
+          <label class="choice"><input type="radio" name="aotc" value="2" /><span class="choice-text">Two years</span></label>
+          <label class="choice"><input type="radio" name="aotc" value="3" /><span class="choice-text">Three years</span></label>
+          <label class="choice"><input type="radio" name="aotc" value="4" /><span class="choice-text">Four or more</span></label>
+          <label class="choice"><input type="radio" name="aotc" value="unknown" /><span class="choice-text">I do not know</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Were you enrolled at least half time in a degree program?</legend>
+        <p class="help">Required for the American Opportunity Credit. The Lifetime Learning Credit has no enrollment minimum.</p>
+        <div class="choices two">
+          <label class="choice"><input type="radio" name="halftime" value="yes" /><span class="choice-text">Yes</span></label>
+          <label class="choice"><input type="radio" name="halftime" value="no" /><span class="choice-text">No</span></label>
+        </div>
+      </fieldset>
+
+      <div class="panel-actions"><button type="button" class="btn btn-ghost" data-back="5">Back</button><div class="spacer"></div><span class="error" role="alert" tabindex="-1" data-err="5"></span><button type="button" class="btn" data-next="5">Continue</button></div>
+    </section>
+
+    <section class="panel" id="p6" hidden>
+      <div class="panel-head">
+        <div class="step-of">Section 7 of 9</div>
+        <h2>Other situations</h2>
+        <p>These come up often enough for students that skipping them causes real problems.</p>
+      </div>
+
+      <fieldset>
+        <legend>Did you have marketplace health insurance through Healthcare.gov or a state exchange?</legend>
+        <p class="help">If yes you receive Form 1095-A and must file Form 8962 to reconcile the subsidy. Filing without it is the most common cause of a held return.</p>
+        <div class="choices two">
+          <label class="choice"><input type="radio" name="marketplace" value="yes" /><span class="choice-text">Yes</span></label>
+          <label class="choice"><input type="radio" name="marketplace" value="no" /><span class="choice-text">No, I am on a parent or school plan</span></label>
+        </div>
+        <div class="note note-warn" id="mkt-warn" hidden>You need <span class="formref">Form 1095-A</span> in hand before you file. It arrives by the end of January. Filing without reconciling on <span class="formref">Form 8962</span> will hold your refund.</div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Did you contribute to a retirement account?</legend>
+        <p class="help">A Roth IRA or a 401k at a job. The Saver's Credit is worth up to $1,000, but full-time students and dependents are both disqualified from it.</p>
+        <div class="choices two">
+          <label class="choice"><input type="radio" name="retire" value="yes" /><span class="choice-text">Yes</span></label>
+          <label class="choice"><input type="radio" name="retire" value="no" /><span class="choice-text">No</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Did you have a foreign bank account or foreign income?</legend>
+        <p class="help">Accounts abroad worth more than $10,000 at any point in the year require an FBAR filing, separate from your tax return and due in April.</p>
+        <div class="choices two">
+          <label class="choice"><input type="radio" name="foreign" value="yes" /><span class="choice-text">Yes</span></label>
+          <label class="choice"><input type="radio" name="foreign" value="no" /><span class="choice-text">No</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Did anything below apply?</legend>
+        <p class="help">Check all that apply. Each one changes which forms you need.</p>
+        <div class="choices">
+          <label class="choice"><input type="checkbox" name="extra" value="hsa" /><span class="choice-text">I had a health savings account<small>Requires Form 8889</small></span></label>
+          <label class="choice"><input type="checkbox" name="extra" value="moved" /><span class="choice-text">I moved to a different state during the year<small>Means a part-year return in two states</small></span></label>
+          <label class="choice"><input type="checkbox" name="extra" value="dependent_own" /><span class="choice-text">I have a child or dependent of my own<small>Opens the Child Tax Credit and possibly the Earned Income Credit</small></span></label>
+          <label class="choice"><input type="checkbox" name="extra" value="prior" /><span class="choice-text">I did not file in a prior year when I should have<small>You can still file back three years and collect the refund</small></span></label>
+          <label class="choice"><input type="checkbox" name="extra" value="none" /><span class="choice-text">None of these</span></label>
+        </div>
+      </fieldset>
+
+      <div class="panel-actions"><button type="button" class="btn btn-ghost" data-back="6">Back</button><div class="spacer"></div><span class="error" role="alert" tabindex="-1" data-err="6"></span><button type="button" class="btn" data-next="6">Continue</button></div>
+    </section>
+
+    <section class="panel" id="p7" hidden>
+      <div class="panel-head">
+        <div class="step-of">Section 8 of 9</div>
+        <h2>States and software</h2>
+        <p>Going away to school does not change your home state. If you worked where you go to school, you likely owe two state returns, filed in a specific order.</p>
+      </div>
+
+      <fieldset>
+        <legend>Residency</legend>
+        <div class="grid-fields">
+          <div class="field">
+            <label for="homestate">Permanent home state</label>
+            <small>Your driver's license, voter registration, and parents' address</small>
+            <select id="homestate"></select>
+          </div>
+          <div class="field">
+            <label for="schoolstate">State where your school is</label>
+            <select id="schoolstate"></select>
+          </div>
+          <div class="field">
+            <label for="workedschool">Did you earn wages in your school's state?</label>
+            <select id="workedschool">
+              <option value="">Select</option>
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="workedother">Did you work in a third state, such as a summer internship?</label>
+            <select id="workedother">
+              <option value="">Select</option>
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </select>
+          </div>
+        </div>
+        <div class="note" id="state-note" hidden></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>How do you plan to file?</legend>
+        <p class="help">Pick one and the walkthrough tailors its wording to that product. If you are undecided, choose the last option for a recommendation based on your answers.</p>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="software" value="freefile" /><span class="choice-text">An IRS Free File partner<small>Free federal and often free state below the income threshold. Eight partners, each with its own extra restrictions</small></span></label>
+          <label class="choice"><input type="radio" name="software" value="fillable" /><span class="choice-text">IRS Free File Fillable Forms<small>No income limit and no guided interview. Electronic versions of the paper forms</small></span></label>
+          <label class="choice"><input type="radio" name="software" value="freetaxusa" /><span class="choice-text">FreeTaxUSA<small>Free federal including self-employment forms, modest per state charge</small></span></label>
+          <label class="choice"><input type="radio" name="software" value="turbotax" /><span class="choice-text">TurboTax<small>Widely used, but the free tier drops most students once a 1098-T or 1099 is added</small></span></label>
+          <label class="choice"><input type="radio" name="software" value="vita" /><span class="choice-text">A VITA site or campus tax clinic<small>Free in person help from certified volunteers</small></span></label>
+          <label class="choice"><input type="radio" name="software" value="undecided" /><span class="choice-text">Undecided, recommend one for me</span></label>
+        </div>
+        <div class="note note-warn" id="soft-note" hidden></div>
+      </fieldset>
+
+      <div class="panel-actions"><button type="button" class="btn btn-ghost" data-back="7">Back</button><div class="spacer"></div><span class="error" role="alert" tabindex="-1" data-err="7"></span><button type="button" class="btn btn-green" data-next="7">Build my filing plan</button></div>
+    </section>
+
+    <section class="panel" id="p8" hidden>
+      <div class="panel-head">
+        <div class="step-of">Section 9 of 9</div>
+        <h2>Your filing plan</h2>
+        <p>Work down this list in order. Everything below is generated from your answers, not from a template.</p>
+      </div>
+      <div id="plan"></div>
+      <div class="panel-actions">
+        <button type="button" class="btn btn-ghost" data-back="8">Back</button>
+        <button type="button" class="btn btn-ghost" id="print">Save as PDF</button>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" id="restart">Start over</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-legal" style="padding-top:0;border:none">
+      <p>Campus Filing is a student project. It is educational software, not tax preparation, and it does not transmit returns. Figures reflect tax year <span data-tax="year">2026</span> rules published in IRS Revenue Procedure 2025-32 and should be confirmed against IRS Publication 501, Publication 970, and your state revenue department before you file.</p>
+      <p>No Social Security numbers, bank account numbers, or uploaded documents are collected or transmitted. <a href="../privacy.html">How we handle data</a></p>
+      <p>Copyright 2026 Campus Filing, a student project at the George Washington University School of Business. Not affiliated with the Internal Revenue Service.</p>
+      </div>
+  </div>
+</footer>
+
+<script src="../assets/js/tax-constants.js"></script>
+<script src="../assets/js/nav.js"></script>
+<script src="../assets/js/wizard.js"></script>
+</body>
+</html>
