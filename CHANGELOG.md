@@ -1,10 +1,64 @@
 # Fixes applied after code review
 
-The original `tests.js` covers selected calculation helpers and formula examples.
-It does not verify every item below or constitute a complete tax-accuracy audit.
-Run `node tests.js` and `node tests-ui.js` from the project root. The second
-suite checks navigation and upload behavior with a minimal DOM harness, not a
-real browser or an accessibility audit.
+Four suites now. Run all of them from the project root:
+
+```
+node tests.js           20 checks, tax math
+node tests-extract.js   11 checks, document reading
+node tests-ui.js        10 checks, walkthrough interactions against a stub DOM
+node tests-browser.js   36 checks, a real browser (npm install playwright)
+```
+
+None of this constitutes a complete tax-accuracy audit.
+
+## October: the W-2 misread, found by reproducing it on the live site
+
+The reported symptom was that W-2 income pulled from a document was
+heavily incorrect. The cause: the reader flattened each PDF page into a
+single string and took the first number following a caption. A W-2 prints
+captions on one row and amounts on the row beneath:
+
+```
+1 Wages, tips, other compensation   2 Federal income tax withheld
+45,000.00                           3,200.00
+```
+
+Flattened, the text after "Wages, tips, other compensation" begins
+"2 Federal income tax withheld", so the reader returned **2** as the wage
+figure. Reproduced against the deployed site: $2 instead of $45,000, with
+Box 2 and Box 17 missed entirely.
+
+`extract.js` now keeps each text item's coordinates, rebuilds lines from
+them, and looks for a value in the caption's own column on the rows
+beneath before considering anything to its right. A bare integer under 100
+is never money, and a number followed by a known caption is rejected as a
+box number.
+
+**The testing lesson, which is the more useful finding.** The first fix
+shipped with passing unit tests while the live site was still wrong,
+because those tests used a hand written stand-in for pdf.js output rather
+than pdf.js. `tests-browser.js` runs the real library in a real browser,
+and it caught it. Any component whose input comes from a third party
+library should be tested against that library.
+
+## October: third party requests removed
+
+pdf.js came from cdnjs and the webfonts from Google. Both are now served
+from the site itself. A CDN request breaks uploads on networks that block
+CDNs, and a font request hands a visitor's IP address and current page to
+a third party, which is a strange thing for a tax tool to do while
+promising nothing leaves the tab.
+
+The Content Security Policy is now `default-src 'self'` with every
+directive self-only, and `tests-browser.js` fails if any page requests
+anything offsite. The claim on the privacy page is tested, not asserted.
+
+## October: a caching mistake, recorded because it was mine
+
+A first pass at `vercel.json` set `max-age=3600` on `/assets/`. Filenames
+here carry no content hash, so that leaves a returning visitor running a
+mix of old and new JavaScript after a deploy. It cost half an hour of
+testing against stale code before the symptom was understood. Removed.
 
 ## Found outside the review, and more serious than anything in it
 
