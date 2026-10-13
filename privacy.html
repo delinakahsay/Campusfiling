@@ -11,7 +11,7 @@
 <meta property="og:image" content="assets/og.png" />
 <meta property="og:site_name" content="Campus Filing" />
 <meta name="twitter:card" content="summary_large_image" />
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="assets/images/filing-folder.png" type="image/png" />
 <meta name="theme-color" content="#101519" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -65,8 +65,13 @@
     <p>The walkthrough runs entirely in your browser. Your answers live in page memory and are gone the moment you close the tab. Nothing is written to a server, a database, or browser storage.</p>
     <p>That is also why there is no save button yet. Saving requires an account, an account requires a database, and a database holding student income figures is a responsibility this project takes seriously rather than casually.</p>
 
-    <h2>What happens to uploaded documents</h2>
-    <p>Files you drop into the walkthrough are read in the browser and never uploaded. They are not sent anywhere, not stored, and not retained after you leave the page. In the current build, document reading is simulated for demonstration and no real parsing occurs.</p>
+    <h2>What happens to your documents</h2>
+    <p>In this build, reading happens inside your browser. A PDF is opened locally, its text layer is searched for labelled amounts, and the file itself is never transmitted. Close the tab and both the file and anything read from it are gone.</p>
+    <p>No amount is ever written into your answers on its own. Everything found is shown in a review table first, against the form it came from, for you to check and correct. Forms are laid out differently by every issuer, so a misread is expected rather than exceptional, and the review step exists so a wrong number is always visible before it counts.</p>
+    <p>Photographs and scans hold a picture of the form rather than readable text. There is no character recognition here, so those files are listed with your records and you type the figures yourself.</p>
+
+    <h2>What changes when accounts arrive</h2>
+    <p>A later version will store documents and profiles so a return can be picked up next January. That version will hold real financial documents belonging to real students, which is a different responsibility from this one, and this page will describe exactly what is retained, where it lives, how it is encrypted, and how to delete it, before the feature ships rather than after.</p>
 
     <h2>How to verify this yourself</h2>
     <p>Open your browser's developer tools, switch to the Network tab, and run the entire walkthrough. You will see requests for fonts and stylesheets and nothing else. No request carries your answers.</p>

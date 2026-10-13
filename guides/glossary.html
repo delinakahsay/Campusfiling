@@ -11,7 +11,7 @@
 <meta property="og:image" content="../assets/og.png" />
 <meta property="og:site_name" content="Campus Filing" />
 <meta name="twitter:card" content="summary_large_image" />
-<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="../assets/images/filing-folder.png" type="image/png" />
 <meta name="theme-color" content="#101519" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -44,13 +44,18 @@
     <p class="eyebrow">Guide</p>
     <h1>Glossary</h1>
     <p>Alphabetical. One line each, written the way you would explain it out loud.</p>
+    <div class="field" style="max-width:420px;margin-top:18px">
+      <label for="term-filter">Search the glossary</label>
+      <input type="search" id="term-filter" placeholder="Try dependent, stipend, or liability" autocomplete="off" />
+      <p class="caption" id="term-count" role="status" aria-live="polite"></p>
+    </div>
   </div>
 </div>
 
 <main id="main">
 <section class="band">
 <div class="wrap">
-    <dl class="terms">
+    <dl class="terms" id="terms">
       <dt>Adjusted gross income (AGI)</dt>
       <dd>Your total income minus a short list of adjustments such as student loan interest. Software asks for last year's AGI to verify your identity when you e-file.</dd>
       <dt>American Opportunity Credit</dt>
@@ -79,6 +84,8 @@
       <dd>Tuition and fees required for enrollment. Room, board, transportation, and optional equipment do not qualify, which is what makes some scholarship money taxable.</dd>
       <dt>Qualifying child</dt>
       <dd>The dependency test that covers most students. Under 19, or under <span data-tax="studentAgeLimit">24</span> and a full-time student, living with the parent more than half the year, and not providing more than half their own support.</dd>
+      <dt>Tax liability</dt>
+      <dd>What you owe for the year before counting anything you already paid in. Your income minus your standard deduction gives taxable income, the brackets turn that into income tax, self-employment tax is added, and credits come off. The result is your liability. Withholding and estimated payments are then compared against it: pay in more than your liability and the difference is refunded, pay in less and you owe. Having zero liability is common for students and does not mean you should skip filing, because withheld money only comes back if you ask for it.</dd>
       <dt>Refundable credit</dt>
       <dd>A credit that can produce a refund even when you owe no tax. Most credits are nonrefundable and only reduce tax you already owe.</dd>
       <dt>Resident return</dt>
@@ -89,6 +96,8 @@
       <dd>Where self-employment tax is calculated, at 15.3 percent of net profit. Applies once net profit reaches <span data-tax="selfEmploymentTrigger">$400</span>.</dd>
       <dt>Self-employment tax</dt>
       <dd>Social Security and Medicare tax paid by people who work for themselves. An employee splits this with their employer. A gig worker pays both halves.</dd>
+      <dt>Stipend</dt>
+      <dd>Money paid to support you while you study or research. If it required teaching or research work, it is wages and should arrive on a W-2. If it did not, it follows the scholarship rules: taxable only above tuition, required fees, books and supplies, reported on Schedule 1 line 8r, and counted as earned income when your standard deduction is worked out.</dd>
       <dt>Standard deduction</dt>
       <dd>The flat amount subtracted from your income before tax is calculated. <span data-tax="singleStandardDeduction">$16,100</span> for a single filer in <span data-tax="year">2026</span>, reduced for dependents to earned income plus <span data-tax="dependentEarnedBump">$450</span> with a <span data-tax="dependentFloor">$1,350</span> floor.</dd>
       <dt>Substantial presence test</dt>
@@ -99,6 +108,8 @@
       <dd>Money you did not work for. Interest, dividends, capital gains, and unemployment. A dependent must file once unearned income passes <span data-tax="unearnedFilingTrigger">$1,350</span>.</dd>
       <dt>VITA</dt>
       <dd>Volunteer Income Tax Assistance, an IRS program placing certified volunteers at free tax clinics. Many universities host one staffed by accounting students.</dd>
+      <dt>Taxable scholarship</dt>
+      <dd>The part of your scholarship, grant, or fellowship that exceeded tuition, required fees, and required books and supplies. Money that paid for rent, meals, or travel is taxable even though it went to real costs. Nothing is withheld from it, which is why it turns an expected refund into a balance due.</dd>
       <dt>Withholding</dt>
       <dd>Tax taken out of your paycheck and sent to the IRS on your behalf. Reported in box 2 of your W-2. If more was withheld than you owe, the difference is your refund.</dd>
     </dl>
@@ -152,5 +163,6 @@
 
 <script src="../assets/js/tax-constants.js"></script>
 <script src="../assets/js/nav.js"></script>
+<script src="../assets/js/glossary.js"></script>
 </body>
 </html>

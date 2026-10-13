@@ -4,25 +4,25 @@
    Nothing persists. Answers live in the A object and are gone when the
    tab closes or reloads. That is deliberate, see privacy.html. */
 
-/* Sample values used to demonstrate the prefill interaction. This is not
-   document parsing. Filenames are matched and canned figures are loaded,
-   which is why every message says "sample values" rather than "read". */
-const SAMPLE_LOADERS = [
-  { match: /w-?2/i, label: "W-2", fields: { w2wage: 7840, w2fed: 412, w2state: 186 }, accumulate: true },
-  { match: /1098-?t/i, label: "1098-T", fields: { tuition: 28450, scholarship: 31200 } },
-  { match: /1098-?e/i, label: "1098-E", fields: { loanint: 640 } },
-  { match: /1099-?(nec|k|misc)/i, label: "1099-NEC", fields: { segross: 3120 } },
-  { match: /1099-?(int|div)/i, label: "1099-INT", fields: { interest: 84 } },
-  { match: /1095-?a/i, label: "1095-A", fields: {} },
-  { match: /1099-?g/i, label: "1099-G", fields: { unemp: 1200 } }
-];
+/* Practice figures for the demo button. These are invented. The build
+   does not read uploaded documents, so nothing here is derived from a
+   file. Every message about them says "practice figures" so a tester
+   never mistakes them for extracted values. */
+const DEMO_FIGURES = {
+  w2wage: 7840, w2fed: 412, w2state: 186, tips: 0,
+  stipend: 0,
+  segross: 3120, seexp: 640,
+  interest: 84, dividends: 0, gains: -450, unemp: 0,
+  tuition: 28450, scholarship: 31200, books: 900, roomboard: 0,
+  loanint: 0
+};
 
 const SECTIONS = [
   "Your status", "About you", "Dependency", "Documents", "Income",
   "School money", "Other situations", "States and software", "Your filing plan"
 ];
 
-const A = { extra: [], files: [] };
+const A = { extra: [], havedoc: [], files: [] };
 let current = 0;
 let furthest = 0;
 let fileSeq = 0;
@@ -86,6 +86,8 @@ function init() {
   document.addEventListener("change", refreshSummary);
 
   $("print").addEventListener("click", function () { window.print(); });
+  const wsBtn = $("show-worksheet");
+  if (wsBtn) wsBtn.addEventListener("click", buildWorksheet);
   $("restart").addEventListener("click", restart);
 
   go(0);
@@ -156,9 +158,9 @@ function numSigned(id) {
   return isNaN(n) ? 0 : n;
 }
 
-const MONEY_FIELDS = ["w2wage", "w2fed", "w2state", "tips", "segross", "seexp",
-  "interest", "dividends", "unemp", "tuition", "scholarship",
-  "books", "roomboard", "loanint"];
+const MONEY_FIELDS = ["w2wage", "w2fed", "w2state", "tips", "stipend",
+  "segross", "seexp", "interest", "dividends", "unemp", "tuition",
+  "scholarship", "books", "roomboard", "loanint"];
 
 function collect() {
   A.status = radio("status");
@@ -178,6 +180,7 @@ function collect() {
   A.retire = radio("retire");
   A.foreign = radio("foreign");
   A.extra = Array.from(document.querySelectorAll('input[name="extra"]:checked')).map(function (e) { return e.value; });
+  A.havedoc = Array.from(document.querySelectorAll('input[name="havedoc"]:checked')).map(function (e) { return e.value; });
   A.homestate = $("homestate").value;
   A.schoolstate = $("schoolstate").value;
   A.workedschool = $("workedschool").value;
@@ -238,7 +241,17 @@ function derive() {
      tuition, required fees, and required books and supplies. The old
      build ignored books, which overstated taxable scholarship. */
   const qualifiedEd = (A.tuition || 0) + (A.books || 0);
-  const taxableScholarship = Math.max(0, (A.scholarship || 0) - qualifiedEd);
+  const scholarshipExcess = Math.max(0, (A.scholarship || 0) - qualifiedEd);
+
+  /* A fellowship or stipend with no W-2 follows the scholarship rules:
+     taxable to the extent it is not spent on qualified education
+     expenses, reported on Schedule 1 line 8r, and counted as earned
+     income for the dependent standard deduction. Qualified expenses are
+     applied to scholarship money first, so only what is left over can
+     shelter the stipend. */
+  const edShelterLeft = Math.max(0, qualifiedEd - (A.scholarship || 0));
+  const taxableStipend = Math.max(0, (A.stipend || 0) - edShelterLeft);
+  const taxableScholarship = scholarshipExcess + taxableStipend;
 
   const earned = (A.w2wage || 0) + (A.tips || 0) + seNet + taxableScholarship;
 
@@ -281,7 +294,7 @@ function derive() {
   const refund = (A.w2fed || 0) - totalTax;
 
   return {
-    seNet, taxableScholarship, qualifiedEd, earned, unearned, netGains, total,
+    seNet, taxableScholarship, taxableStipend, scholarshipExcess, qualifiedEd, earned, unearned, netGains, total,
     dep, treatAsDependent, sd, halfSe, loanDeduction, agi,
     reasons, mustFile: reasons.length > 0,
     taxable, incomeTax, seTax, totalTax, refund,
@@ -361,8 +374,9 @@ function refreshSummary() {
 function wireReactions() {
   document.querySelectorAll('input[name="status"]').forEach(function (el) {
     el.addEventListener("change", function () {
-      $("nra-warn").hidden = radio("status") !== "nra";
-      $("spt-warn").hidden = radio("status") !== "unsure";
+      const s = radio("status");
+      $("nra-warn").hidden = s !== "nra";
+      $("spt-warn").hidden = s !== "unsure" && s !== "other-visa";
     });
   });
 
@@ -409,14 +423,30 @@ function wireReactions() {
     });
   });
 
-  ["tuition", "scholarship", "books", "roomboard"].forEach(function (id) {
+  const stipendEl = $("stipend");
+  if (stipendEl) {
+    stipendEl.addEventListener("input", function () {
+      collect();
+      const d = derive();
+      const w = $("stipend-note");
+      w.hidden = num("stipend") <= 0;
+      if (!w.hidden) {
+        w.className = "note";
+        w.innerHTML = d.taxableStipend > 0
+          ? money(d.taxableStipend) + " of this stipend is taxable, because your qualified education expenses were already used up by scholarship money. It goes on <span class='formref'>Schedule 1, line 8r</span> and counts as earned income when your standard deduction is calculated. If the stipend was actually payment for required teaching or research, it is wages instead and belongs on a W-2, so ask your department which it was."
+          : "Your qualified education expenses cover this stipend, so none of it is taxable this year. If the stipend was payment for required teaching or research it is wages rather than a fellowship, which changes the answer, so confirm with your department.";
+      }
+    });
+  }
+
+  ["tuition", "scholarship", "books", "roomboard", "stipend"].forEach(function (id) {
     $(id).addEventListener("input", function () {
       const qualified = num("tuition") + num("books");
-      const excess = Math.max(0, num("scholarship") - qualified);
+      const excess = Math.max(0, num("scholarship") + num("stipend") - qualified);
       const w = $("sch-warn");
       w.hidden = excess <= 0;
       if (!w.hidden) {
-        w.innerHTML = money(excess) + " of scholarship money exceeded your qualified expenses of " + money(qualified) +
+        w.innerHTML = money(excess) + " of scholarship and stipend money exceeded your qualified expenses of " + money(qualified) +
           " in tuition, required fees, books and supplies. That excess is taxable income, and it goes on <span class='formref'>Schedule 1, line 8r</span>, described there as scholarship and fellowship grants not reported on Form W-2. Software usually files this under a less common income screen that is easy to miss.";
       }
     });
@@ -461,10 +491,18 @@ function wireReactions() {
   });
 }
 
-/* ---------- files ---------- */
+/* ---------- documents ---------- */
+
+/* Files are read in the browser by extract.js. Extracted amounts are
+   proposed in a review table and only written into answers when the user
+   confirms them. Each applied value is recorded against its file, so
+   removing the file removes what it contributed. */
+
+let pending = [];
 
 function wireFiles() {
   const drop = $("drop"), input = $("files");
+  if (!drop || !input) return;
 
   $("browse").addEventListener("click", function () { input.click(); });
   input.addEventListener("change", function (e) { handleFiles(e.target.files); input.value = ""; });
@@ -475,96 +513,71 @@ function wireFiles() {
   ["dragleave", "drop"].forEach(function (ev) {
     drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove("over"); });
   });
-  drop.addEventListener("drop", function (e) { handleFiles(e.dataTransfer.files); });
+  drop.addEventListener("drop", function (e) { e.preventDefault(); handleFiles(e.dataTransfer.files); });
+
+  const demo = $("load-demo");
+  if (demo) demo.addEventListener("click", loadDemoFigures);
 }
 
 function handleFiles(list) {
-  let loaded = 0;
+  const files = Array.from(list || []);
+  if (!files.length) return;
 
-  Array.from(list).forEach(function (f) {
-    const hit = SAMPLE_LOADERS.find(function (x) { return x.match.test(f.name); });
-    const rec = { id: ++fileSeq, name: f.name, size: f.size, label: hit ? hit.label : null, applied: {} };
+  files.forEach(function (f) {
+    const rec = { id: ++fileSeq, name: f.name, size: f.size, type: null,
+      status: "reading", note: null, applied: {} };
     A.files.push(rec);
-    if (!hit) return;
+    renderFiles();
 
-    Object.keys(hit.fields).forEach(function (k) {
-      const el = $(k);
-      if (!el) return;
-      const value = hit.fields[k];
-      const currentValue = el.value === "" ? 0 : parseFloat(el.value) || 0;
-
-      /* Multiple W-2s accumulate rather than the second being ignored. */
-      if (hit.accumulate) {
-        el.value = currentValue + value;
-        rec.applied[k] = value;
-      } else if (currentValue === 0) {
-        el.value = value;
-        rec.applied[k] = value;
-      } else {
-        return;
+    readDocument(f).then(function (res) {
+      rec.type = res.type;
+      rec.note = res.note;
+      rec.status = res.found.length ? "found" : (res.needsManual ? "manual" : "recognized");
+      if (res.type) autoCheckHaveDoc(res.type);
+      if (res.found.length) {
+        res.found.forEach(function (x) { pending.push({ fileId: rec.id, fileName: rec.name, formType: res.type, field: x.field, label: x.label, value: x.value }); });
       }
-
-      el.classList.add("prefilled");
-      const tag = document.querySelector('[data-tag="' + k + '"]');
-      if (tag) tag.classList.add("on");
-      loaded++;
+      renderFiles();
+      renderReview();
+      refreshSummary();
+    }).catch(function () {
+      rec.status = "manual";
+      rec.note = "This file could not be read. It is listed with your records; type its figures in yourself.";
+      renderFiles();
     });
-
-    if (hit.label === "1095-A") {
-      const mk = document.querySelector('input[name="marketplace"][value="yes"]');
-      if (mk) { mk.checked = true; $("mkt-warn").hidden = false; rec.applied.marketplace = true; }
-    }
   });
+}
 
-  renderFiles();
+const TYPE_TO_HAVEDOC = { "W-2": "w2", "1099-NEC": "1099nec", "1099-K": "1099nec",
+  "1098-T": "1098t", "1099-B": "1099b", "1099-INT": "1099int", "1099-DIV": "1099int",
+  "1098-E": "1098e", "1095-A": "1095a" };
 
-  const note = $("extract-note");
-  if (loaded) {
-    note.hidden = false;
-    note.textContent = "Loaded " + loaded + " sample value" + (loaded === 1 ? "" : "s") +
-      " from the filenames you dropped in. These are demonstration figures, not readings of your documents. Replace every one of them with the real numbers from your forms before you file.";
+function autoCheckHaveDoc(formType) {
+  const key = TYPE_TO_HAVEDOC[formType];
+  if (!key) return;
+  const box = document.querySelector('input[name="havedoc"][value="' + key + '"]');
+  if (box) box.checked = true;
+  if (formType === "1095-A") {
+    const mk = document.querySelector('input[name="marketplace"][value="yes"]');
+    if (mk && !mk.checked) { mk.checked = true; const w = $("mkt-warn"); if (w) w.hidden = false; }
   }
-  refreshSummary();
 }
 
-/* Removing a document also removes the values it put in, so the plan
-   never reflects a document that is no longer listed. */
-function removeFile(id) {
-  const idx = A.files.findIndex(function (f) { return f.id === id; });
-  if (idx === -1) return;
-  const rec = A.files[idx];
+const STATUS_TEXT = {
+  reading: ["Reading", "tag-muted"],
+  found: ["Amounts to check", ""],
+  recognized: ["Recognized", ""],
+  manual: ["Type this one in", "tag-muted"]
+};
 
-  Object.keys(rec.applied).forEach(function (k) {
-    if (k === "marketplace") {
-      const mk = document.querySelector('input[name="marketplace"][value="yes"]');
-      if (mk) { mk.checked = false; $("mkt-warn").hidden = true; }
-      return;
-    }
-    const el = $(k);
-    if (!el) return;
-    const currentValue = el.value === "" ? 0 : parseFloat(el.value) || 0;
-    const next = Math.max(0, currentValue - rec.applied[k]);
-    el.value = next === 0 ? "" : next;
-    if (next === 0) {
-      el.classList.remove("prefilled");
-      const tag = document.querySelector('[data-tag="' + k + '"]');
-      if (tag) tag.classList.remove("on");
-    }
-  });
-
-  A.files.splice(idx, 1);
-  renderFiles();
-  refreshSummary();
-}
-
-/* Filenames are user supplied. They go in with textContent, never
-   innerHTML, so a crafted filename cannot inject markup. */
 function renderFiles() {
   const ul = $("filelist");
+  if (!ul) return;
   ul.innerHTML = "";
 
   A.files.forEach(function (f) {
     const li = document.createElement("li");
+    li.style.flexWrap = "wrap";
 
     const grow = document.createElement("div");
     grow.className = "grow";
@@ -573,13 +586,14 @@ function renderFiles() {
     nameEl.textContent = f.name;
     const metaEl = document.createElement("div");
     metaEl.className = "fmeta";
-    metaEl.textContent = Math.max(1, Math.round(f.size / 1024)) + " KB";
+    metaEl.textContent = Math.max(1, Math.round(f.size / 1024)) + " KB" + (f.type ? " \u00b7 " + f.type : "");
     grow.appendChild(nameEl);
     grow.appendChild(metaEl);
 
+    const st = STATUS_TEXT[f.status] || STATUS_TEXT.manual;
     const tag = document.createElement("span");
-    tag.className = "tag" + (f.label ? "" : " tag-muted");
-    tag.textContent = f.label ? "Sample values for " + f.label : "Not recognized";
+    tag.className = "tag " + st[1];
+    tag.textContent = st[0];
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -591,8 +605,157 @@ function renderFiles() {
     li.appendChild(grow);
     li.appendChild(tag);
     li.appendChild(btn);
+
+    if (f.note) {
+      const n = document.createElement("div");
+      n.className = "fmeta";
+      n.style.flexBasis = "100%";
+      n.textContent = f.note;
+      li.appendChild(n);
+    }
+
     ul.appendChild(li);
   });
+}
+
+/* The review table. Nothing reaches an answer without passing through it. */
+function renderReview() {
+  const box = $("review");
+  if (!box) return;
+
+  if (!pending.length) { box.hidden = true; box.innerHTML = ""; return; }
+
+  const rows = pending.map(function (x, i) {
+    return '<tr>' +
+      '<td><label style="font-weight:400;display:flex;gap:9px;align-items:flex-start">' +
+      '<input type="checkbox" data-review="' + i + '" checked />' +
+      '<span>' + x.label + '<br /><span style="color:var(--muted);font-size:13px">' + x.formType + ' \u00b7 ' + x.fileName + '</span></span></label></td>' +
+      '<td class="num"><input type="number" data-reviewval="' + i + '" value="' + x.value + '" style="max-width:130px;text-align:right" /></td>' +
+      '</tr>';
+  }).join("");
+
+  box.hidden = false;
+  box.innerHTML =
+    '<h3 style="margin-top:26px">Check these against your forms</h3>' +
+    '<div class="note note-warn"><p>These amounts were read out of your documents. Issuers lay these forms out very differently, so a misread is normal and expected. Compare each figure to the paper before you apply it, correct anything wrong, and untick anything that does not belong.</p></div>' +
+    '<div class="table-wrap"><table class="data"><thead><tr><th>What was found</th><th class="num">Amount</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="btn-row">' +
+    '<button type="button" class="btn btn-green btn-sm" id="apply-review">Apply the ticked amounts</button>' +
+    '<button type="button" class="btn btn-ghost btn-sm" id="discard-review">Discard, I will type them</button>' +
+    '</div>';
+
+  const applyBtn = $("apply-review"), discardBtn = $("discard-review");
+  if (applyBtn) applyBtn.addEventListener("click", applyReview);
+  if (discardBtn) discardBtn.addEventListener("click", function () {
+    pending = [];
+    renderReview();
+    const note = $("extract-note");
+    if (note) { note.hidden = false; note.className = "note"; note.textContent = "Discarded. Type your figures into the sections ahead."; }
+  });
+}
+
+function applyReview() {
+  let applied = 0;
+
+  pending.forEach(function (x, i) {
+    const on = document.querySelector('[data-review="' + i + '"]');
+    const valEl = document.querySelector('[data-reviewval="' + i + '"]');
+    if (!on || !on.checked) return;
+
+    const v = parseFloat(valEl ? valEl.value : x.value);
+    if (isNaN(v)) return;
+
+    const el = $(x.field);
+    if (!el) return;
+
+    /* Wages accumulate across employers. Everything else replaces, because
+       two 1098-Ts for one year means one of them is wrong. */
+    const accumulate = ["w2wage", "w2fed", "w2state", "segross"].indexOf(x.field) > -1;
+    const currentValue = el.value === "" ? 0 : parseFloat(el.value) || 0;
+    el.value = accumulate ? currentValue + v : v;
+
+    const rec = A.files.filter(function (f) { return f.id === x.fileId; })[0];
+    if (rec) rec.applied[x.field] = (rec.applied[x.field] || 0) + (accumulate ? v : v - currentValue);
+
+    el.classList.add("prefilled");
+    const tag = document.querySelector('[data-tag="' + x.field + '"]');
+    if (tag) tag.classList.add("on");
+    applied++;
+  });
+
+  pending = [];
+  renderReview();
+
+  const note = $("extract-note");
+  if (note) {
+    note.hidden = false;
+    note.className = "note note-good";
+    note.textContent = applied + (applied === 1 ? " amount was" : " amounts were") +
+      " applied to the sections ahead. They are still yours to edit, and the plan uses whatever is in the fields when you reach it.";
+  }
+
+  ["segross", "seexp", "tuition", "scholarship", "books", "stipend"].forEach(function (id) {
+    const el = $(id);
+    if (el && el.dispatchEvent) el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  refreshSummary();
+}
+
+function removeFile(id) {
+  const idx = A.files.findIndex(function (f) { return f.id === id; });
+  if (idx === -1) return;
+  const rec = A.files[idx];
+
+  Object.keys(rec.applied).forEach(function (k) {
+    const el = $(k);
+    if (!el) return;
+    const currentValue = el.value === "" ? 0 : parseFloat(el.value) || 0;
+    const next = currentValue - rec.applied[k];
+    el.value = next === 0 ? "" : next;
+    if (next === 0) {
+      el.classList.remove("prefilled");
+      const tag = document.querySelector('[data-tag="' + k + '"]');
+      if (tag) tag.classList.remove("on");
+    }
+  });
+
+  pending = pending.filter(function (x) { return x.fileId !== id; });
+  A.files.splice(idx, 1);
+  renderFiles();
+  renderReview();
+  refreshSummary();
+}
+
+/* ---------- practice figures ---------- */
+
+function loadDemoFigures() {
+  Object.keys(DEMO_FIGURES).forEach(function (k) {
+    const el = $(k);
+    if (!el) return;
+    el.value = DEMO_FIGURES[k];
+    el.classList.add("prefilled");
+    const tag = document.querySelector('[data-tag="' + k + '"]');
+    if (tag) tag.classList.add("on");
+  });
+
+  document.querySelectorAll('input[name="havedoc"]').forEach(function (el) {
+    if (["w2", "1099nec", "1098t", "1099b", "1099int"].indexOf(el.value) > -1) el.checked = true;
+  });
+
+  const note = $("extract-note");
+  if (note) {
+    note.hidden = false;
+    note.className = "note note-warn";
+    note.textContent = "Practice figures loaded. Every one of these numbers is invented and matches no real document. Replace them with your own before you rely on anything the plan says.";
+  }
+
+  ["segross", "seexp", "tuition", "scholarship", "books", "stipend"].forEach(function (id) {
+    const el = $(id);
+    if (el && el.dispatchEvent) el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  refreshSummary();
 }
 
 /* ---------- validation ---------- */
@@ -792,11 +955,19 @@ function buildPlan() {
   if (A.marketplace === "yes") docs.push(["1095-A", "From Healthcare.gov. Required before you file, and it feeds Form 8962."]);
   if (A.unemp > 0) docs.push(["1099-G", "From your state unemployment office."]);
   if (A.extra.indexOf("hsa") > -1) docs.push(["1099-SA and 5498-SA", "From your HSA custodian, feeding Form 8889."]);
+  if (A.stipend > 0) docs.push(["Fellowship or stipend award letter", "There may be no tax form at all for this. The award letter is what establishes the amount and whether it required services."]);
   docs.push(["Last year's return", "Software asks for prior year adjusted gross income to verify your identity when you e-file."]);
+
+  const HAVE_KEY = { "W-2": "w2", "1099-NEC or 1099-K": "1099nec", "1098-T": "1098t",
+    "1099-INT, 1099-DIV, or 1099-B": "1099b", "1098-E": "1098e", "1095-A": "1095a",
+    "Last year's return": "prior" };
 
   h += '<div class="result-card is-info"><h3>Gather these before you open any software</h3><ul class="checklist">' +
     docs.map(function (x) {
-      return '<li><span class="mark">&#10003;</span><span><span class="formref">' + x[0] + '</span> ' + x[1] + '</span></li>';
+      const k = HAVE_KEY[x[0]];
+      const have = k && A.havedoc.indexOf(k) > -1;
+      return '<li><span class="mark">' + (have ? "&#10003;" : "&#9744;") + '</span><span><span class="formref">' + x[0] + '</span> ' +
+        (have ? "You have this." : x[1]) + '</span></li>';
     }).join("") + '</ul></div>';
 
   const s = d.states;
@@ -884,6 +1055,223 @@ function buildPlan() {
   out.innerHTML = h;
 }
 
+
+/* ---------- step-by-step worksheet ---------- */
+
+/* Named screens for guided software are stable year to year. Form and
+   schedule names are stable. Individual 1040 line numbers are not: the
+   2026 form is not published until December, so the only line numbers
+   used here are ones that have held since the 2022 redesign, and the
+   worksheet says so on screen. */
+
+const SOFTWARE_LABEL = {
+  freefile: "your IRS Free File partner",
+  fillable: "Free File Fillable Forms",
+  freetaxusa: "FreeTaxUSA",
+  turbotax: "TurboTax",
+  vita: "your VITA appointment",
+  undecided: "your filing software"
+};
+
+function screenFor(topic, software) {
+  const map = {
+    personal: {
+      freetaxusa: "Personal, then Personal Information",
+      turbotax: "My Info, then the questions about your parents",
+      fillable: "Form 1040, page 1, the Standard Deduction block under your name",
+      other: "the personal information or About You screen"
+    },
+    w2: {
+      freetaxusa: "Income, then Wages (W-2)",
+      turbotax: "Wages and Income, then Job (W-2)",
+      fillable: "Form 1040, the wages line, and attach your W-2",
+      other: "the wages or W-2 screen"
+    },
+    gig: {
+      freetaxusa: "Income, then Business Income (Schedule C)",
+      turbotax: "Wages and Income, then Self-employment income and expenses",
+      fillable: "Schedule C, then Schedule SE",
+      other: "the self-employment or business income screen"
+    },
+    invest: {
+      freetaxusa: "Income, then Interest Income and Stocks or Investments",
+      turbotax: "Wages and Income, then Investments and Savings",
+      fillable: "Schedule B, then Form 8949 and Schedule D",
+      other: "the interest, dividends, and investment sales screens"
+    },
+    scholarship: {
+      freetaxusa: "Income, then Less Common Income, then Scholarships and Grants",
+      turbotax: "Deductions and Credits, then Education, then the scholarship follow-up questions",
+      fillable: "Schedule 1, line 8r",
+      other: "a less common income or other income screen"
+    },
+    education: {
+      freetaxusa: "Deductions and Credits, then Education Expenses",
+      turbotax: "Deductions and Credits, then Education",
+      fillable: "Form 8863",
+      other: "the education credits screen"
+    },
+    loan: {
+      freetaxusa: "Deductions and Credits, then Student Loan Interest",
+      turbotax: "Deductions and Credits, then Education, then Student Loan Interest",
+      fillable: "Schedule 1, the student loan interest deduction line",
+      other: "the student loan interest screen"
+    },
+    marketplace: {
+      freetaxusa: "Deductions and Credits, then Health Insurance (Form 1095-A)",
+      turbotax: "Deductions and Credits, then Medical, then Affordable Care Act",
+      fillable: "Form 8962",
+      other: "the health insurance or 1095-A screen"
+    },
+    state: {
+      freetaxusa: "State, then add each state return",
+      turbotax: "State Taxes",
+      fillable: "your state revenue department's own forms, which are not part of Fillable Forms",
+      other: "the state return section"
+    },
+    finish: {
+      freetaxusa: "Filing, then E-File",
+      turbotax: "Review, then File",
+      fillable: "the E-File Now button after running Do the Math",
+      other: "the review and submit screens"
+    }
+  };
+  const m = map[topic];
+  return m[software] || m.other;
+}
+
+function buildWorksheet() {
+  collect();
+  const d = derive();
+  const box = $("worksheet");
+  if (!box) return;
+
+  const sw = (A.software && A.software !== "undecided") ? A.software : "other";
+  const name = SOFTWARE_LABEL[A.software] || SOFTWARE_LABEL.undecided;
+  const steps = [];
+
+  if (A.status === "nra") {
+    box.hidden = false;
+    box.innerHTML = '<div class="result-card is-stop"><h3>No worksheet for this path</h3>' +
+      '<p>A step-by-step worksheet for Form 1040 would walk you into filing the wrong return. You need Form 1040-NR and Form 8843, which none of the software this worksheet covers can produce.</p>' +
+      '<p>Read the <a href="../guides/international.html">international students guide</a> and get a Sprintax code from your international student office first.</p></div>';
+    return;
+  }
+
+  steps.push(["Gather everything first",
+    "Open nothing until you have every form on your checklist. Starting and stopping is how people end up entering a number twice or forgetting the 1099-B that arrives in February." +
+    (A.havedoc.indexOf("prior") === -1 ? " You have not checked off last year's return, and you will be asked for its adjusted gross income to verify your identity." : "")]);
+
+  steps.push(["Open " + name + " and start a " + TAX.year + " return",
+    A.software === "freefile"
+      ? "Start from the IRS Free File page on IRS.gov rather than going to the partner's own site. Beginning anywhere else usually means you are in the paid product wearing the same logo."
+      : (A.software === "fillable"
+        ? "Fillable Forms has no interview. You are typing onto the form itself, so have this worksheet open beside it."
+        : "Create the account with an email you will still have next April, since that is how you retrieve this return next year.")]);
+
+  steps.push([d.treatAsDependent ? "Check the dependent box" : "Leave the dependent box unchecked",
+    "Go to " + screenFor("personal", sw) + ". " +
+    (d.treatAsDependent
+      ? "Answer yes when asked whether someone else can claim you. This is the single most common student error, and it is the difference between a " + money(d.sd) + " standard deduction and " + money(TAX.singleStandardDeduction) + "."
+      : "Answer no. Nobody meets the qualifying child or qualifying relative test for you, so you take the full " + money(TAX.singleStandardDeduction) + " standard deduction.")]);
+
+  if (A.w2wage > 0 || A.w2fed > 0) {
+    steps.push(["Enter each W-2 exactly as printed",
+      "Go to " + screenFor("w2", sw) + ". Type box 1 (" + money(A.w2wage) + "), box 2 (" + money(A.w2fed) + ")" +
+      (A.w2state > 0 ? ", and box 17 (" + money(A.w2state) + ")" : "") +
+      ". Enter one W-2 per employer. Do not add them together, because the IRS matches each one separately."]);
+  }
+
+  if (A.tips > 0) {
+    steps.push(["Add tips that were not on a W-2",
+      "Same screen, look for the unreported tips or other wages question. " + money(A.tips) + " of tip income still belongs on the return even though nobody sent you a form for it."]);
+  }
+
+  if (d.seNet >= TAX.selfEmploymentTrigger) {
+    steps.push(["Set up the gig work as a business",
+      "Go to " + screenFor("gig", sw) + ". Report " + money(A.segross) + " of gross income and " + money(A.seexp) + " of expenses, giving " + money(d.seNet) + " of net profit. " +
+      "Self-employment tax of roughly " + money(d.seTax) + " is calculated from that, and half of it, " + money(d.halfSe) + ", comes back automatically as a deduction. You do not enter that half yourself."]);
+    steps.push(["Split your mileage at June 30",
+      TAX.year + " has two business mileage rates. Miles through June 30 deduct at " + Math.round(TAX.mileageFirstHalf * 100) + " cents, miles from July 1 at " + Math.round(TAX.mileageSecondHalf * 100) + " cents. Most software asks for one total. Enter them as two separate expense lines or you will understate the deduction."]);
+  }
+
+  if (A.interest > 0 || A.dividends > 0 || A.gains !== 0) {
+    let detail = "Go to " + screenFor("invest", sw) + ". ";
+    if (A.interest > 0) detail += "Interest " + money(A.interest) + ". ";
+    if (A.dividends > 0) detail += "Dividends " + money(A.dividends) + ". ";
+    if (A.gains !== 0) detail += "Sales of " + money(A.gains) + ". Import the 1099-B rather than typing it if the option exists, because every individual sale has to be listed. ";
+    if (A.gains < 0) detail += "A loss offsets gains first and then up to " + money(TAX.capitalLossLimit) + " of other income, so reporting it helps you.";
+    steps.push(["Enter investment income", detail.trim()]);
+  }
+
+  if (d.taxableScholarship > 0) {
+    steps.push(["Report the taxable part of your school money",
+      "Go to " + screenFor("scholarship", sw) + " and enter " + money(d.taxableScholarship) + ". " +
+      "This is the amount your scholarships and stipends exceeded tuition, required fees, books and supplies. " +
+      "It lands on Schedule 1, line 8r. Software will not find this on its own from your 1098-T, so if you skip this step the return is wrong and nothing will warn you."]);
+  }
+
+  if (d.treatAsDependent) {
+    steps.push(["Skip the education credit entirely",
+      "Do not enter your 1098-T for a credit. Whoever claims you gets it. If you claim it too, both returns are flagged and at least one has to be amended. Send your parents the 1098-T and your book receipts instead."]);
+  } else {
+    steps.push(["Claim your education credit",
+      "Go to " + screenFor("education", sw) + " and enter your 1098-T along with " + money(A.books || 0) + " of books and supplies, which never appear on that form. " +
+      (A.halftime === "yes" && A.aotc !== "4"
+        ? "You qualify for the American Opportunity Credit."
+        : "You are limited to the Lifetime Learning Credit.") +
+      " Confirm with your parents that they are not claiming you before you submit."]);
+  }
+
+  if (!d.treatAsDependent && A.loanint > 0) {
+    steps.push(["Deduct your student loan interest",
+      "Go to " + screenFor("loan", sw) + " and enter " + money(A.loanint) + " from your 1098-E. You do not need to itemize for this."]);
+  } else if (d.treatAsDependent && A.loanint > 0) {
+    steps.push(["Do not deduct the student loan interest",
+      "You paid " + money(A.loanint) + ", but a dependent cannot take this deduction and neither can your parents unless the loan is legally theirs. Leave it off rather than having the return corrected later."]);
+  }
+
+  if (A.marketplace === "yes") {
+    steps.push(["Reconcile your marketplace insurance",
+      "Go to " + screenFor("marketplace", sw) + " and enter your 1095-A. This produces Form 8962. Filing without it is a leading cause of held refunds, and the IRS will not process the return until it is there."]);
+  }
+
+  const s = d.states;
+  const stParts = stateSummary(s);
+  if (stParts.length) {
+    let detail = "Go to " + screenFor("state", sw) + ". ";
+    if (s.nonresident.length && s.resident) {
+      detail += "Do the " + s.nonresident.join(" and ") + " nonresident return first, then " + s.resident +
+        ". In that order the credit for tax paid to another state calculates. In the other order it does not and you pay twice.";
+    } else {
+      detail += "You need: " + stParts.join(", ") + ".";
+    }
+    s.notes.forEach(function (n) { detail += " " + n.replace(/<[^>]+>/g, ""); });
+    steps.push(["File your state returns in this order", detail]);
+  }
+
+  steps.push(["Choose direct deposit, then review",
+    "Go to " + screenFor("finish", sw) + ". Pick direct deposit rather than a paper check, which takes four to six weeks longer and gets lost when it is mailed to a campus address in June. " +
+    "Before submitting, check the dependent box one more time. It is the field most often wrong on a student return."]);
+
+  steps.push(["Save a copy of everything",
+    "Download the completed PDF and keep it. You will need this year's adjusted gross income to e-file next year, and you have three years to amend if something turns out to be wrong."]);
+
+  const html = steps.map(function (st, i) {
+    return '<div class="result-card is-info"><h3>' + (i + 1) + '. ' + st[0] + '</h3><p>' + st[1] + '</p></div>';
+  }).join("");
+
+  box.hidden = false;
+  box.innerHTML =
+    '<h3 style="margin-top:2rem">Your step-by-step worksheet</h3>' +
+    '<div class="note note-warn"><p><strong>Read this before you follow it.</strong> ' +
+    'Screen names come from the ' + (TAX.year - 1) + ' versions of these products and move slightly between years. Where a screen name does not match, look for the nearest equivalent rather than skipping the step. ' +
+    'This worksheet tells you where each figure goes. It does not check your math, and it is not a substitute for the software\u2019s own review step.</p></div>' +
+    html;
+
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 /* ---------- restart ---------- */
 
 function restart() {
@@ -894,12 +1282,16 @@ function restart() {
     el.classList.remove("prefilled");
   });
   document.querySelectorAll(".prefill-tag").forEach(function (t) { t.classList.remove("on"); });
-  ["nra-warn", "spt-warn", "married-warn", "mkt-warn", "se-warn", "sch-warn", "state-note", "soft-note", "dep-verdict", "extract-note"]
+  ["nra-warn", "spt-warn", "married-warn", "mkt-warn", "se-warn", "sch-warn", "state-note", "soft-note", "dep-verdict", "extract-note", "stipend-note", "review"]
     .forEach(function (id) { const el = $(id); if (el) el.hidden = true; });
   A.files = [];
   A.extra = [];
+  A.havedoc = [];
+  pending = [];
   renderFiles();
+  renderReview();
   $("plan").innerHTML = "";
+  const ws = $("worksheet"); if (ws) { ws.innerHTML = ""; ws.hidden = true; }
   furthest = 0;
   go(0);
 }

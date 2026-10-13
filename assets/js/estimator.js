@@ -100,6 +100,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   document.getElementById("est-run").addEventListener("click", run);
 
+  /* Submission is handled here rather than with an inline onsubmit
+     attribute, so the Content Security Policy can forbid inline script
+     outright. Nothing is ever posted anywhere. */
+  form.addEventListener("submit", function (e) { e.preventDefault(); run(); });
+
   form.addEventListener("input", function () { err.textContent = ""; });
 
   form.addEventListener("keydown", function (e) {

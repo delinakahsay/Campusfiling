@@ -6,7 +6,8 @@
      Tax year 2026 figures: IRS Rev. Proc. 2025-32 (IR-2025-103)
      Tax year 2025 figures: IRS Rev. Proc. 2024-40 as amended by OBBBA
      Mileage 2026: IRS Notice 2026-10 as amended by Announcement 2026-11
-     Free File: IRS 2026 filing season release
+     Free File: IRS 2026 filing season release; program extended
+       through October 2029 per IR-2024-145
      Direct File: IRS notice to partner states, November 3, 2025
 */
 
@@ -53,6 +54,8 @@ const TAX_YEARS = {
        published until late 2026, so copy must say "most recent". */
     freeFileIncomeLimit: 89000,
     freeFileLimitAppliesToYear: 2025,
+    freeFilePartnerCount: 8,
+    freeFileExtendedThrough: 2029,
 
     /* Direct File was discontinued. Do not recommend it. */
     directFileAvailable: false,
@@ -104,6 +107,8 @@ const TAX_YEARS = {
 
     freeFileIncomeLimit: 84000,
     freeFileLimitAppliesToYear: 2024,
+    freeFilePartnerCount: 8,
+    freeFileExtendedThrough: 2029,
 
     directFileAvailable: false,
 
@@ -218,17 +223,30 @@ function studentLoanDeduction(interestPaid, magi, isDependent, t) {
 
 /* Fill any element carrying data-tax with the matching constant so page
    copy cannot drift from this file. Text inside the tag is a fallback
-   for anyone with scripting disabled, so keep it accurate. */
+   for anyone with scripting disabled, so keep it accurate.
+
+   Keys are typed explicitly. The previous version formatted every number
+   as currency, which rendered ages and year counts as "$24". */
+
+const TAX_TEXT_KEYS = ["year", "filedIn", "deadline", "seasonOpens",
+  "freeFileLimitAppliesToYear", "freeFileExtendedThrough"];
+
+const TAX_COUNT_KEYS = ["qualifyingChildAge", "studentAgeLimit",
+  "aotcLifetimeYears"];
+
+const TAX_RATE_KEYS = ["mileageFirstHalf", "mileageSecondHalf"];
+
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll("[data-tax]").forEach(function (el) {
     const key = el.dataset.tax;
-    const passthrough = ["year", "filedIn", "deadline", "seasonOpens", "freeFileLimitAppliesToYear"];
-    if (passthrough.indexOf(key) > -1) { el.textContent = TAX[key]; return; }
-    if (key === "mileageFirstHalf" || key === "mileageSecondHalf") {
-      el.textContent = Math.round(TAX[key] * 100) + " cents";
+    const v = TAX[key];
+    if (v === undefined) return;
+    if (TAX_TEXT_KEYS.indexOf(key) > -1) { el.textContent = v; return; }
+    if (TAX_COUNT_KEYS.indexOf(key) > -1) { el.textContent = String(v); return; }
+    if (TAX_RATE_KEYS.indexOf(key) > -1) {
+      el.textContent = Math.round(v * 100) + " cents";
       return;
     }
-    const v = TAX[key];
     if (typeof v === "number") el.textContent = money(v);
   });
 });
