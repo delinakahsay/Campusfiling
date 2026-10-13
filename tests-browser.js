@@ -217,6 +217,38 @@ async function main() {
 
   check("A theme control is present", await page.evaluate(() => !!document.getElementById("theme-toggle")));
 
+  /* Light is the default for everyone, including a machine whose system
+     preference is dark. This is deliberate: the site is demonstrated on
+     projectors and on borrowed laptops, and inheriting dark there once
+     produced a washed out, unreadable screen. Dark is reachable only
+     through the footer control. */
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.reload();
+  const defaultTheme = await page.evaluate(function () {
+    const bg = getComputedStyle(document.body).backgroundColor;
+    const match = /(\d+), (\d+), (\d+)/.exec(bg);
+    const light = match && Number(match[1]) > 200 && Number(match[2]) > 200;
+    return { bg: bg, light: !!light, attr: document.documentElement.getAttribute("data-theme") };
+  });
+  check("A dark system preference does not darken the site",
+    defaultTheme.light, "body background came back " + defaultTheme.bg);
+  check("No theme is forced onto the page before anyone picks one",
+    defaultTheme.attr === null, "data-theme was " + defaultTheme.attr);
+
+  /* The control still has to work from that same dark-preferring machine. */
+  const afterToggle = await page.evaluate(function () {
+    document.getElementById("theme-toggle").click();
+    return { attr: document.documentElement.getAttribute("data-theme"),
+      stored: localStorage.getItem("campusfiling-theme") };
+  });
+  check("The footer control is the way into dark",
+    afterToggle.attr === "dark" && afterToggle.stored === "dark",
+    "attribute " + afterToggle.attr + ", stored " + afterToggle.stored);
+
+  await page.emulateMedia({ colorScheme: null });
+  await page.evaluate(function () { try { localStorage.clear(); } catch (e) {} });
+  await page.reload();
+
   /* Enter should advance a section, the way any form behaves. */
   const keyed = await page.evaluate(async () => {
     go(0, false);

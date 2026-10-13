@@ -91,42 +91,14 @@
   --drop-bg: var(--paper);
 }
 
-/* Dark theme. Applied from the system preference, and overridable by the
-   control in the footer, which writes the single value this site keeps in
-   browser storage. */
+/* Dark theme. Opt in only.
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --ink: #E6ECF0;
-    --slate: #AFBAC2;
-    --muted: #8A959D;
-    --navy: #8CC0E8;
-    --navy-dark: #A7D2F2;
-    --blue: #6BAEDE;
-    --blue-soft: #17242E;
-    --forest: #74CBA0;
-    --forest-dark: #8FDBB5;
-    --sage: #14271E;
-    --amber: #E0AC52;
-    --amber-soft: #2B2316;
-    --rust: #E89181;
-    --rust-soft: #2D1C18;
-    --paper: #0F1418;
-    --sand: #1E262D;
-    --line: #2E3840;
-    --line-soft: #242D34;
-    --white: #171E24;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 14px rgba(0, 0, 0, .3);
-    --btn-primary-bg: #3E8FCC;
-    --btn-primary-bg-hover: #58A3DC;
-    --btn-primary-fg: #06121C;
-    --btn-accent-bg: #2E9B6E;
-    --btn-accent-bg-hover: #3FB081;
-    --btn-accent-fg: #04140D;
-    --prefill-bg: #16291F;
-    --drop-bg: #131A1F;
-  }
-}
+   The system preference is deliberately NOT consulted. This site is
+   demonstrated on projectors and on machines nobody controls, and a dark
+   render on a washed out projector is worse than a plain one. Light is the
+   default everywhere; the control in the footer is the only way into dark,
+   and the choice it writes is the single value this site keeps in browser
+   storage. */
 
 :root[data-theme="dark"] {
   --ink: #E6ECF0;
@@ -161,9 +133,6 @@
 
 :root { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { color-scheme: dark; }
-}
 
 *, *::before, *::after { box-sizing: border-box; }
 

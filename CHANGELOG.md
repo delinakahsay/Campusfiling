@@ -6,10 +6,28 @@ Four suites now. Run all of them from the project root:
 node tests.js           20 checks, tax math
 node tests-extract.js   11 checks, document reading
 node tests-ui.js        10 checks, walkthrough interactions against a stub DOM
-node tests-browser.js   36 checks, a real browser (npm install playwright)
+node tests-browser.js   39 checks, a real browser (npm install playwright)
 ```
 
 None of this constitutes a complete tax-accuracy audit.
+
+## October: light is the default, dark is a choice
+
+The theme originally followed `prefers-color-scheme`, so the site opened
+dark on any machine set to dark. That is the usual convention and it is
+wrong for this project. The walkthrough gets demonstrated on classroom
+projectors and on borrowed laptops, where a dark render washes out, and
+whoever is presenting does not find out until the screen is already up.
+
+The system preference is no longer consulted anywhere. Every visitor gets
+light. The control in the footer is the only route into dark, and the
+choice it writes to `campusfiling-theme` is still the single value this
+site keeps in browser storage.
+
+Three browser checks hold this in place: that a machine reporting a dark
+system preference still renders light, that no `data-theme` is forced onto
+the page before anyone picks one, and that the footer control still
+reaches dark from that same machine.
 
 ## October: the W-2 misread, found by reproducing it on the live site
 
