@@ -136,26 +136,161 @@ async function pdfLines(file) {
   return all;
 }
 
-/* ---------- classification ---------- */
+/* ---------- classification ----------
 
-const FORM_SIGNATURES = [
-  { type: "W-2", test: /\bW-?2\b|Wage and Tax Statement/i },
-  { type: "1098-T", test: /1098-?T|Tuition Statement/i },
-  { type: "1098-E", test: /1098-?E|Student Loan Interest Statement/i },
-  { type: "1099-NEC", test: /1099-?NEC|Nonemployee Compensation/i },
-  { type: "1099-K", test: /1099-?K|Payment Card and Third Party/i },
-  { type: "1099-INT", test: /1099-?INT|Interest Income/i },
-  { type: "1099-DIV", test: /1099-?DIV|Dividends and Distributions/i },
-  { type: "1099-B", test: /1099-?B|Proceeds From Broker/i },
-  { type: "1099-G", test: /1099-?G|Certain Government Payments/i },
-  { type: "1095-A", test: /1095-?A|Health Insurance Marketplace Statement/i },
-  { type: "1042-S", test: /1042-?S|Foreign Person'?s U\.?S\.? Source Income/i }
+   The first version searched the whole document for a form name and took
+   the first hit. That fails on every real tax document, because every one
+   of them ships with the IRS "Instructions for Recipient" boilerplate,
+   and that boilerplate names other forms:
+
+     1099-NEC: "You received this form instead of Form W-2 because..."
+     1099-B:   "...the option that was reported to you on a Form W-2."
+     1095-B:   "...will generally be reported on Form 1095-A rather than
+                a Form 1095-B."
+
+   W-2 was first in the list, so a 1099-NEC, a consolidated brokerage 1099
+   and a 1095-B all classified as W-2 or 1095-A. The name was never the
+   document's own; it was the document telling you about a different one.
+
+   Evidence is weighted instead:
+
+     OMB control number  strongest. Printed in the form's own header block
+                         and essentially never in prose about other forms.
+     Title phrase        strong. "Wage and Tax Statement" in the header.
+     Bare name in prose  weak, and discarded outright when the words just
+                         before it point somewhere else.
+
+   A brokerage consolidated 1099 carries several of these at full strength
+   at once, which is how it is detected rather than flattened to whichever
+   section happened to be printed first. */
+
+const OMB_FORMS = {
+  "1545-0008": "W-2", "1545-0029": "W-2",
+  "1545-1574": "1098-T", "1545-1576": "1098-E",
+  "1545-0116": "1099-NEC", "1545-0115": "1099-MISC",
+  "1545-0112": "1099-INT", "1545-0110": "1099-DIV",
+  "1545-0715": "1099-B", "1545-0117": "1099-OID",
+  "1545-2205": "1099-K", "1545-0120": "1099-G",
+  "1545-0119": "1099-R", "1545-2896": "1099-DA",
+  "1545-2232": "1095-A", "1545-2252": "1095-B", "1545-2251": "1095-C",
+  "1545-0096": "1042-S"
+};
+
+const OMB_TOKEN = /15\d\d-\d{4}/g;
+
+/* The header line a form prints about itself. */
+const TITLE_SIGNATURES = [
+  { type: "W-2", test: /Wage and Tax Statement|W-2 and EARNINGS SUMMARY/i },
+  { type: "1098-T", test: /Tuition Statement/i },
+  { type: "1098-E", test: /Student Loan Interest Statement/i },
+  { type: "1099-NEC", test: /Nonemployee Compensation/i },
+  { type: "1099-MISC", test: /Miscellaneous Information|Miscellaneous Income/i },
+  { type: "1099-K", test: /Payment Card and Third Party Network Transactions/i },
+  { type: "1099-INT", test: /\bInterest Income\b/i },
+  { type: "1099-DIV", test: /Dividends and Distributions/i },
+  { type: "1099-B", test: /Proceeds From Broker/i },
+  { type: "1099-G", test: /Certain Government Payments/i },
+  { type: "1099-R", test: /Distributions From Pensions/i },
+  { type: "1095-A", test: /Health Insurance Marketplace Statement/i },
+  { type: "1095-B", test: /Health Coverage\b/i },
+  { type: "1095-C", test: /Employer-Provided Health Insurance Offer/i },
+  { type: "1042-S", test: /Foreign Person'?s U\.?S\.? Source Income/i }
 ];
 
-function classify(text, filename) {
-  const hay = (text || "") + " " + (filename || "");
-  for (const sig of FORM_SIGNATURES) if (sig.test.test(hay)) return sig.type;
-  return null;
+/* The bare name, wherever it appears. Weak on its own. */
+const NAME_SIGNATURES = [
+  { type: "W-2", test: /\bW-?2\b/gi },
+  { type: "1098-T", test: /\b1098-?T\b/gi },
+  { type: "1098-E", test: /\b1098-?E\b/gi },
+  { type: "1099-NEC", test: /\b1099-?NEC\b/gi },
+  { type: "1099-MISC", test: /\b1099-?MISC\b/gi },
+  { type: "1099-K", test: /\b1099-?K\b/gi },
+  { type: "1099-INT", test: /\b1099-?INT\b/gi },
+  { type: "1099-DIV", test: /\b1099-?DIV\b/gi },
+  { type: "1099-B", test: /\b1099-?B\b/gi },
+  { type: "1099-OID", test: /\b1099-?OID\b/gi },
+  { type: "1099-G", test: /\b1099-?G\b/gi },
+  { type: "1099-R", test: /\b1099-?R\b/gi },
+  { type: "1099-DA", test: /\b1099-?DA\b/gi },
+  { type: "1095-A", test: /\b1095-?A\b/gi },
+  { type: "1095-B", test: /\b1095-?B\b/gi },
+  { type: "1095-C", test: /\b1095-?C\b/gi },
+  { type: "1042-S", test: /\b1042-?S\b/gi }
+];
+
+/* Wording that makes the following form name somebody else's. Tested
+   against the text immediately before the match. */
+const CROSS_REFERENCE =
+  /(instead of|rather than|in place of|in lieu of|replaces?|replaced by|will replace|see|refer to|reported (?:to you )?on|report(?:ed|s)? on|may be reported on|will be reported on|not reported on|combined (?:with|into)|along with|as well as|also receive|receive a|attach(?:ed)? to)\s+(a |an |the |your |new )*(Forms?|Schedules?)?\s*$/i;
+
+const CROSS_REFERENCE_WINDOW = 46;
+
+const SCORE_OMB = 6;
+const SCORE_TITLE = 4;
+const SCORE_NAME = 1;
+const STRONG = SCORE_TITLE;
+
+/* A consolidated brokerage package is several of these bound together. */
+const BROKERAGE = ["1099-INT", "1099-DIV", "1099-B", "1099-MISC", "1099-OID", "1099-DA"];
+
+function scoreForms(text, filename) {
+  const scores = {};
+  function add(type, n) { scores[type] = (scores[type] || 0) + n; }
+
+  let m;
+  OMB_TOKEN.lastIndex = 0;
+  while ((m = OMB_TOKEN.exec(text)) !== null) {
+    const type = OMB_FORMS[m[0]];
+    if (type) add(type, SCORE_OMB);
+  }
+
+  TITLE_SIGNATURES.forEach(function (sig) {
+    if (sig.test.test(text)) add(sig.type, SCORE_TITLE);
+  });
+
+  NAME_SIGNATURES.forEach(function (sig) {
+    sig.test.lastIndex = 0;
+    let hit;
+    while ((hit = sig.test.exec(text)) !== null) {
+      const before = text.slice(Math.max(0, hit.index - CROSS_REFERENCE_WINDOW), hit.index);
+      if (!CROSS_REFERENCE.test(before)) add(sig.type, SCORE_NAME);
+    }
+  });
+
+  /* The filename is a hint, never more than that. People rename files. */
+  if (filename) {
+    NAME_SIGNATURES.forEach(function (sig) {
+      sig.test.lastIndex = 0;
+      if (sig.test.test(filename)) add(sig.type, SCORE_NAME);
+    });
+  }
+
+  return scores;
+}
+
+/* Returns { type, parts }. parts is filled only for a consolidated
+   package, and lists the sections found inside it. */
+function classifyDocument(text, filename) {
+  const scores = scoreForms(text || "", filename || "");
+  const ranked = Object.keys(scores).sort(function (a, b) { return scores[b] - scores[a]; });
+
+  if (!ranked.length) return { type: null, parts: [] };
+
+  const strongBrokerage = ranked.filter(function (t) {
+    return BROKERAGE.indexOf(t) > -1 && scores[t] >= STRONG;
+  });
+
+  if (strongBrokerage.length >= 2) {
+    return { type: "Consolidated 1099", parts: strongBrokerage.sort() };
+  }
+
+  /* Anything scoring only on bare names is a mention, not an identity. */
+  if (scores[ranked[0]] < STRONG) {
+    const named = ranked[0];
+    return { type: scores[named] >= SCORE_NAME * 2 ? named : null, parts: [], weak: true };
+  }
+
+  return { type: ranked[0], parts: [] };
 }
 
 /* ---------- number parsing ----------
@@ -177,7 +312,33 @@ function parseMoneyToken(tok) {
    almost always real amounts. Bare integers are accepted but ranked below
    formatted ones, and bare integers under 100 are refused entirely because
    on these forms they are overwhelmingly box numbers, not dollars. */
-function moneyCandidates(text) {
+/* Identifiers that are digits but are not amounts. A W-2 prints its OMB
+   control number, the employer's EIN, a masked SSN and often an import
+   code, all within a few millimetres of the money boxes. GW's W-2 emits
+   its text layer right to left, which put "OMB No. 1545-0029" directly
+   under the wages caption, and the reader returned 1545 as wages.
+
+   These are blanked before any amount is looked for. The replacement is
+   the same length as what it covers so every index stays valid. */
+const IDENTIFIERS = [
+  /OMB\s*No\.?\s*\d{2,4}-\d{4}/gi,   /* OMB control number, with its label */
+  /\b\d{2,4}-\d{2,}(?:-\d+)*\b/g,    /* EIN, OMB, phone, ZIP+4, account numbers */
+  /\*{2,}[-*\d]*/g,                  /* masked SSN */
+  /\b\d{9}\b/g,                      /* bare SSN or routing number */
+  /\b(?:19|20)\d{2}\s+(?:Tax|Form|W-2)/gi /* a year heading next to a form name */
+];
+
+function maskIdentifiers(text) {
+  let out = text;
+  IDENTIFIERS.forEach(function (re) {
+    re.lastIndex = 0;
+    out = out.replace(re, function (hit) { return " ".repeat(hit.length); });
+  });
+  return out;
+}
+
+function moneyCandidates(raw) {
+  const text = maskIdentifiers(raw);
   const out = [];
   let m;
   MONEY_TOKEN.lastIndex = 0;
@@ -327,19 +488,98 @@ const FIELD_RULES = {
 /* Forms we recognize but deliberately do not auto-fill. */
 const NO_AUTOFILL = {
   "1095-A": "Marketplace coverage is flagged for you, but the monthly figures on this form feed Form 8962 and have to be entered in your filing software directly.",
+  "1095-B": "This is proof that you had health coverage. You do not need it to file and nothing from it goes on your return. Keep it with your records. It is often mistaken for a 1095-A, which is the Marketplace form that does affect a return.",
+  "1095-C": "This is your employer's record that it offered you coverage. You do not need it to file and nothing from it goes on your return. Keep it with your records.",
   "1042-S": "This form means you may be a nonresident for tax purposes. The walkthrough will ask about that at section one, and the numbers here do not belong in the fields below.",
+  "1099-R": "A retirement or pension distribution needs the taxable amount, the distribution code in box 7, and possibly an early withdrawal penalty on Form 5329. Too much depends on that code to read it off the page, so enter this one in your filing software directly.",
   "1099-B": "Only the summary total is picked up. Every individual sale still has to reach Schedule D, so import the 1099-B into your filing software rather than retyping it."
 };
+
+/* ---------- text layer quality ----------
+
+   Some PDFs are scans that were run through character recognition, and
+   the recognised text is embedded as the text layer. It reads as a real
+   digital document and parses without error, but the words are wrong:
+
+     "1 Wege&, tips, othff comp.   2 Feder el income tax withheld"
+     "S Medicert weges end tips    6 Medicare tax withheld"
+
+   and the digits carry the same noise, so stray marks arrive as numbers.
+   One of these produced 111 for federal tax withheld on a form whose
+   boxes actually read 354.65 and blank.
+
+   The box captions on these forms are fixed text set by the IRS, so they
+   are a usable ruler. When almost none of them match exactly, the layer
+   is not trustworthy and no figure from it should be offered. */
+
+const STANDARD_CAPTIONS = {
+  "W-2": [/Wages,?\s*tips,?\s*other compensation/i, /Federal income tax withheld/i,
+    /Social security wages/i, /Social security tax withheld/i,
+    /Medicare wages and tips/i, /Medicare tax withheld/i,
+    /Social security tips/i, /State wages,?\s*tips/i, /State income tax/i,
+    /Employer identification number/i, /Wage and Tax Statement/i],
+  "1098-T": [/Payments received for qualified tuition/i, /Scholarships or grants/i,
+    /Adjustments made for a prior year/i, /Tuition Statement/i],
+  "1098-E": [/Student loan interest received/i, /Student Loan Interest Statement/i],
+  "1099-NEC": [/Nonemployee compensation/i, /Federal income tax withheld/i],
+  "1099-INT": [/Interest income/i, /Early withdrawal penalty/i, /Federal income tax withheld/i],
+  "1099-DIV": [/Total ordinary dividends/i, /Qualified dividends/i],
+  "1099-G": [/Unemployment compensation/i],
+  "1099-K": [/Gross amount of payment card/i]
+};
+
+/* Measured against real documents: a clean W-2 matches 11 of 11 captions,
+   a recognised scan of one matched 4. The gap is wide, so the threshold
+   does not have to be delicate. */
+const CLEAN_CAPTION_SHARE = 0.7;
+const MIN_CLEAN_CAPTIONS = 2;
+
+/* Returns true when enough of the form's own captions survived intact. */
+function captionsLookClean(type, text) {
+  const expected = STANDARD_CAPTIONS[type];
+  if (!expected) return true;
+  const clean = expected.filter(function (re) { return re.test(text); }).length;
+  const needed = Math.max(MIN_CLEAN_CAPTIONS, Math.ceil(expected.length * CLEAN_CAPTION_SHARE));
+  return clean >= Math.min(needed, expected.length);
+}
+
+/* A consolidated brokerage 1099 is several forms bound into one PDF, with
+   per-transaction detail that belongs on Schedule D. Nobody should retype
+   one, and every filing package imports them directly. Refusing to read it
+   is the correct answer, not a shortfall. */
+function consolidatedNote(parts) {
+  const names = parts.join(", ");
+  return "This is a consolidated 1099, meaning one PDF holding several forms: " + names +
+    ". Do not retype it. Every filing package imports these directly from your broker, " +
+    "which is both faster and the only way the per-sale detail reaches Schedule D correctly. " +
+    "Look for an import option and your account or document ID, usually printed on the first page. " +
+    "Nothing from this file has been filled in for you.";
+}
 
 /* ---------- pure entry point, testable without a browser ---------- */
 
 function readLines(lines, filename) {
   const flat = lines.map(function (l) { return l.text; }).join(" ");
-  const result = { type: classify(flat, filename), found: [], note: null, needsManual: false };
+  const verdict = classifyDocument(flat, filename);
+  const result = { type: verdict.type, parts: verdict.parts || [],
+    found: [], note: null, needsManual: false };
 
   if (!result.type) {
     result.needsManual = true;
     result.note = "The text came through, but this does not match any tax form the tool knows. Check it is the right file, then enter anything relevant by hand.";
+    return result;
+  }
+
+  /* A consolidated package is identified and then left alone on purpose. */
+  if (result.type === "Consolidated 1099") {
+    result.note = consolidatedNote(result.parts);
+    return result;
+  }
+
+  if (!captionsLookClean(result.type, flat)) {
+    result.needsManual = true;
+    result.note = "This looks like a scan that was put through character recognition, and the recognition was poor. The form is readable enough to tell it is a " +
+      result.type + ", but its printed labels came through garbled, which means any figure read from it would be a guess. Nothing has been filled in. Type the amounts from the paper.";
     return result;
   }
 
@@ -384,7 +624,7 @@ async function readDocument(file) {
   const isPdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
 
   if (!isPdf) {
-    result.type = classify("", file.name);
+    result.type = classifyDocument("", file.name).type;
     result.needsManual = true;
     result.note = "This is an image, and there is no text to read inside it. The file is saved with your records, but you will need to type the figures from it yourself.";
     return result;
@@ -406,7 +646,7 @@ async function readDocument(file) {
 
   const flat = lines.map(function (l) { return l.text; }).join(" ");
   if (flat.replace(/\s/g, "").length < 40) {
-    result.type = classify("", file.name);
+    result.type = classifyDocument("", file.name).type;
     result.needsManual = true;
     result.note = "This PDF is a scan rather than a digital document, so it holds a picture of the form instead of readable text. Type the figures from it yourself.";
     return result;
@@ -414,6 +654,7 @@ async function readDocument(file) {
 
   const read = readLines(lines, file.name);
   result.type = read.type;
+  result.parts = read.parts || [];
   result.found = read.found;
   result.note = read.note;
   result.needsManual = read.needsManual;
@@ -421,5 +662,5 @@ async function readDocument(file) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { itemsToLines, readLines, moneyCandidates, classify };
+  module.exports = { itemsToLines, readLines, moneyCandidates, classifyDocument, scoreForms };
 }

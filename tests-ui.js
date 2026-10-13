@@ -70,6 +70,44 @@ test('Applying review writes the value and removing the file reverses it',()=>{
   context.document.querySelector=prevQS;
 });
 
+/* Two banks means two 1099-INTs and the interest adds up. Interest used
+   to replace rather than accumulate, so the second document silently
+   erased the first and the student saw only the last figure. */
+test('Two 1099-INTs add together instead of overwriting each other',()=>{
+  elements.get('interest').value='';
+  vm.runInContext(`pending=[
+      {fileId:11,fileName:'capitalone.pdf',formType:'1099-INT',field:'interest',label:'Box 1',value:13.1,confidence:'high'},
+      {fileId:12,fileName:'ally.pdf',formType:'1099-INT',field:'interest',label:'Box 1',value:86.4,confidence:'high'}];
+    A.files=[{id:11,name:'capitalone.pdf',size:100,status:'found',applied:{}},
+             {id:12,name:'ally.pdf',size:120,status:'found',applied:{}}];renderReview()`,context);
+  const checks=new Map([['0',{checked:true}],['1',{checked:true}]]);
+  const vals=new Map([['0',{value:'13.1'}],['1',{value:'86.4'}]]);
+  const prevQS=context.document.querySelector;
+  context.document.querySelector=q=>{
+    let m=q.match(/\[data-review="(\d+)"\]/); if(m)return checks.get(m[1]);
+    m=q.match(/\[data-reviewval="(\d+)"\]/); if(m)return vals.get(m[1]);
+    return prevQS(q);
+  };
+  vm.runInContext('applyReview()',context);
+  assert.equal(Number(elements.get('interest').value).toFixed(2),'99.50',
+    'both 1099s should be in the box, not just the last one');
+  vm.runInContext('removeFile(12)',context);
+  assert.equal(Number(elements.get('interest').value).toFixed(2),'13.10',
+    'removing the second leaves exactly the first');
+  context.document.querySelector=prevQS;
+});
+
+/* A figure the reader is unsure of should not arrive pre-ticked. */
+test('A low confidence figure arrives unticked',()=>{
+  vm.runInContext(`pending=[{fileId:21,fileName:'scan.pdf',formType:'W-2',field:'w2fed',label:'Box 2',value:111,confidence:'low'}];
+    A.files=[{id:21,name:'scan.pdf',size:100,status:'found',applied:{}}];renderReview()`,context);
+  const html=elements.get('review').innerHTML;
+  const row=html.match(/<input type="checkbox" data-review="0"([^/]*)\/>/);
+  assert.ok(row,'the review row should render');
+  assert.ok(!/checked/.test(row[1]),'a low confidence row must not be pre-ticked');
+  assert.ok(/left unticked/i.test(html),'and the banner should say so');
+});
+
 test('Stipend beyond qualified expenses becomes taxable scholarship income',()=>{
   elements.get('scholarship').value='0';elements.get('tuition').value='1000';
   elements.get('books').value='0';elements.get('stipend').value='5000';

@@ -59,9 +59,9 @@ campus-filing/
 
 ```
 node tests.js           20 checks, tax math
-node tests-extract.js   11 checks, document reading
-node tests-ui.js        10 checks, walkthrough interactions
-node tests-browser.js   36 checks, needs: npm install playwright
+node tests-extract.js   19 checks, document reading
+node tests-ui.js        12 checks, walkthrough interactions
+node tests-browser.js   39 checks, needs: npm install playwright
 ```
 
 `tests-browser.js` is the one that matters most, and it exists because the

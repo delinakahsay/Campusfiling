@@ -594,7 +594,10 @@ function handleFiles(list) {
     readDocument(f).then(function (res) {
       rec.type = res.type;
       rec.note = res.note;
-      rec.status = res.found.length ? "found" : (res.needsManual ? "manual" : "recognized");
+      rec.status = res.found.length ? "found"
+        : (res.type === "Consolidated 1099" ? "consolidated"
+          : (RECORDS_ONLY.indexOf(res.type) > -1 ? "reference"
+            : (res.needsManual ? "manual" : "recognized")));
       if (res.type) autoCheckHaveDoc(res.type);
       if (res.found.length) {
         res.found.forEach(function (x) { pending.push({ fileId: rec.id, fileName: rec.name, formType: res.type, field: x.field, label: x.label, value: x.value, confidence: x.confidence || "medium" }); });
@@ -622,7 +625,9 @@ function handleFiles(list) {
 }
 
 const TYPE_TO_HAVEDOC ={ "W-2": "w2", "1099-NEC": "1099nec", "1099-K": "1099nec",
+  "1099-MISC": "1099nec",
   "1098-T": "1098t", "1099-B": "1099b", "1099-INT": "1099int", "1099-DIV": "1099int",
+  "Consolidated 1099": "1099b",
   "1098-E": "1098e", "1095-A": "1095a" };
 
 function autoCheckHaveDoc(formType) {
@@ -640,8 +645,13 @@ const STATUS_TEXT = {
   reading: ["Reading", "tag-muted"],
   found: ["Amounts to check", ""],
   recognized: ["Recognized", ""],
+  reference: ["Keep for your records", "tag-muted"],
+  consolidated: ["Import, do not retype", "tag-muted"],
   manual: ["Type this one in", "tag-muted"]
 };
+
+/* Forms that are correctly recognised and correctly not filled in. */
+const RECORDS_ONLY = ["1095-B", "1095-C"];
 
 function renderFiles() {
   const ul = $("filelist");
@@ -710,12 +720,34 @@ function renderReview() {
 
   const lowCount = pending.filter(function (x) { return x.confidence === "low"; }).length;
 
+  /* Two documents can feed one box: two banks, two employers, two schools.
+     Where that is about to happen, say so on the row, because a figure
+     that quietly adds to another is exactly the kind of thing someone
+     only notices after they have filed. Running totals are tracked per
+     box so a third document says the right thing too. */
+  const runningTotal = {};
+
   const rows = pending.map(function (x, i) {
     const c = CONF[x.confidence] || CONF.medium;
+    const el = $(x.field);
+    const already = (runningTotal[x.field] !== undefined)
+      ? runningTotal[x.field]
+      : (el && el.value !== "" ? parseFloat(el.value) || 0 : 0);
+    runningTotal[x.field] = already + x.value;
+
+    const adds = already > 0
+      ? '<div style="color:var(--forest);font-size:12px;margin-top:4px">Adds to the ' +
+        money(already) + ' already in this box, giving ' + money(already + x.value) + '.</div>'
+      : "";
+
+    /* A low confidence figure is not ticked for you. Applying it has to be
+       a deliberate act, because the reader is saying it may be wrong. */
+    const ticked = x.confidence === "low" ? "" : " checked";
+
     return '<tr>' +
       '<td><label style="font-weight:400;display:flex;gap:9px;align-items:flex-start">' +
-      '<input type="checkbox" data-review="' + i + '" checked />' +
-      '<span>' + x.label + '<br /><span style="color:var(--muted);font-size:13px">' + x.formType + ' \u00b7 ' + x.fileName + '</span></span></label></td>' +
+      '<input type="checkbox" data-review="' + i + '"' + ticked + ' />' +
+      '<span>' + x.label + '<br /><span style="color:var(--muted);font-size:13px">' + x.formType + ' \u00b7 ' + x.fileName + '</span>' + adds + '</span></label></td>' +
       '<td><span class="tag ' + c[1] + '">' + c[0] + '</span>' +
       '<div style="color:var(--muted);font-size:12px;margin-top:4px;max-width:30ch">' + c[2] + '</div></td>' +
       '<td class="num"><input type="number" step="0.01" data-reviewval="' + i + '" value="' + x.value + '" style="max-width:130px;text-align:right" aria-label="' + x.label + ' amount" /></td>' +
@@ -726,7 +758,7 @@ function renderReview() {
   box.innerHTML =
     '<h3 style="margin-top:26px">Check these against your forms</h3>' +
     '<div class="note note-warn"><p>These amounts were read out of your documents. Issuers lay these forms out very differently, so a misread is possible. Compare each figure to the paper before you apply it, correct anything wrong, and untick anything that does not belong.</p>' +
-    (lowCount ? '<p><strong>' + lowCount + (lowCount === 1 ? ' figure was' : ' figures were') + ' read with low confidence.</strong> Start your checking there.</p>' : "") +
+    (lowCount ? '<p><strong>' + lowCount + (lowCount === 1 ? ' figure was' : ' figures were') + ' read with low confidence and left unticked.</strong> Check ' + (lowCount === 1 ? 'it' : 'those') + ' against the paper and tick ' + (lowCount === 1 ? 'it' : 'them') + ' only if the figure is right.</p>' : "") +
     '</div>' +
     '<div class="table-wrap"><table class="data"><thead><tr><th>What was found</th><th>How it was read</th><th class="num">Amount</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<div class="btn-row">' +
@@ -758,14 +790,25 @@ function applyReview() {
     const el = $(x.field);
     if (!el) return;
 
-    /* Wages accumulate across employers. Everything else replaces, because
-       two 1098-Ts for one year means one of them is wrong. */
-    const accumulate = ["w2wage", "w2fed", "w2state", "segross"].indexOf(x.field) > -1;
+    /* Every figure adds to what is already in the box.
+
+       This used to accumulate wages and replace everything else, on the
+       reasoning that a second 1098-T for one year means one of them is
+       wrong. That reasoning does not survive contact with real students.
+       Two banks means two 1099-INTs and the interest adds. Two servicers
+       means two 1098-Es. A transfer student has a 1098-T from each school.
+       Replacing meant the second document silently erased the first, so
+       whoever added two 1099s saw only the last one and had no way to
+       tell that anything had been dropped.
+
+       Adding is safe here because the same file cannot be added twice:
+       a repeat of a name and size is refused upstream, and removing a
+       file subtracts exactly what it contributed. */
     const currentValue = el.value === "" ? 0 : parseFloat(el.value) || 0;
-    el.value = accumulate ? currentValue + v : v;
+    el.value = currentValue + v;
 
     const rec = A.files.filter(function (f) { return f.id === x.fileId; })[0];
-    if (rec) rec.applied[x.field] = (rec.applied[x.field] || 0) + (accumulate ? v : v - currentValue);
+    if (rec) rec.applied[x.field] = (rec.applied[x.field] || 0) + v;
 
     el.classList.add("prefilled");
     const tag = document.querySelector('[data-tag="' + x.field + '"]');

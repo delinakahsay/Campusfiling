@@ -38,10 +38,20 @@ function serve() {
 /* A PDF whose text items land where a real W-2 puts them: captions on one
    row, amounts on the row beneath, two columns across. */
 function w2Pdf() {
+  /* The full caption set matters. The reader refuses to read a form whose
+     printed labels are mostly garbled, on the grounds that it is looking
+     at a bad scan, so a fixture carrying only two captions would be
+     refused for the right reason and fail the test for the wrong one. */
   const rows = [
     ["Form W-2 Wage and Tax Statement 2026"],
+    ["b Employer identification number (EIN) 53-0196584"],
     ["1 Wages, tips, other compensation", "2 Federal income tax withheld"],
     ["45,000.00", "3,200.00"],
+    ["3 Social security wages", "4 Social security tax withheld"],
+    ["45,000.00", "2,790.00"],
+    ["5 Medicare wages and tips", "6 Medicare tax withheld"],
+    ["45,000.00", "652.50"],
+    ["7 Social security tips", ""],
     ["16 State wages, tips, etc.", "17 State income tax"],
     ["45,000.00", "1,842.00"]
   ];

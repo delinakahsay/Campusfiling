@@ -4,12 +4,102 @@ Four suites now. Run all of them from the project root:
 
 ```
 node tests.js           20 checks, tax math
-node tests-extract.js   11 checks, document reading
-node tests-ui.js        10 checks, walkthrough interactions against a stub DOM
+node tests-extract.js   19 checks, document reading
+node tests-ui.js        12 checks, walkthrough interactions against a stub DOM
 node tests-browser.js   39 checks, a real browser (npm install playwright)
 ```
 
 None of this constitutes a complete tax-accuracy audit.
+
+## October: the reader was classifying documents by their fine print
+
+Seven real documents were uploaded to the live site. Three were identified
+as the wrong form and one produced a figure that existed nowhere on it.
+
+The classifier searched the whole document for a form name and took the
+first hit. Every real tax document carries the IRS "Instructions for
+Recipient" boilerplate, and that boilerplate names other forms:
+
+| Document | Says, in its instructions | Came back as |
+|---|---|---|
+| 1099-NEC | "You received this form instead of Form **W-2**" | W-2 |
+| Consolidated 1099 | "the option that was reported to you on a Form **W-2**" | W-2 |
+| 1095-B | "reported on Form **1095-A** rather than a Form 1095-B" | 1095-A |
+
+W-2 was first in the list, so it won every tie. The name the reader found
+was never the document's own; it was the document explaining a different
+one. A 1099-NEC misclassifying as a W-2 is not an edge case, because that
+sentence is on every 1099-NEC the IRS prints.
+
+Evidence is now weighted rather than raced:
+
+- **OMB control number**, strongest. It sits in the form's own header and
+  not in prose about other forms. 1545-0116 is a 1099-NEC and nothing else.
+- **Title phrase**, strong. "Wage and Tax Statement" in the header.
+- **Bare name in running text**, weak, and discarded outright when the
+  words before it point elsewhere ("instead of", "rather than", "reported
+  on", "see").
+
+All seven documents now classify correctly.
+
+### Consolidated brokerage 1099s are refused on purpose
+
+E\*TRADE and Robinhood packages are one PDF holding a 1099-INT, a
+1099-DIV, a 1099-B, a 1099-MISC and sometimes a 1099-OID. The old model
+was one file, one form, so it picked a section and dropped the rest. Worse,
+it read the table of contents: the line "1099-INT Interest Income......2"
+yielded an interest figure that appears nowhere on the form.
+
+Several form types at full strength in one document now identify it as a
+consolidated package. Nothing is auto filled, and the note says to import
+it from the broker instead. Nobody should retype one of these, and the
+per-sale detail has to reach Schedule D intact, so refusing is the correct
+answer rather than a shortfall.
+
+### Identifiers are no longer read as money
+
+GW's W-2 emits its text layer right to left, which put the line
+`OMB No. 1545-0029 ***-**-7795 Import Code: 3UEPJ96J` directly beneath the
+wages caption. The reader returned **1545** as wages.
+
+OMB numbers, EINs, masked SSNs, phone numbers and ZIP+4 are blanked before
+any amount is looked for. The replacement is the same length as what it
+covers, so every position stays valid.
+
+### A recognised scan is refused rather than guessed at
+
+One W-2 was a scan run through character recognition, with the recognised
+text embedded as the text layer. It parses without error, but the words
+are wrong:
+
+```
+1 Wege&, tips, othff comp.    2 Feder el income tax withheld
+S Medicert weges end tips     6 Medicare tax withheld
+```
+
+The digits carry the same noise, and stray marks arrive as numbers. The
+reader returned 111 for federal tax withheld on a form whose boxes read
+354.65 and blank.
+
+Box captions are fixed text set by the IRS, so they work as a ruler. A
+clean W-2 matches 11 of 11; that scan matched 4. Below 70 per cent the
+layer is treated as untrustworthy and no figure from it is offered.
+
+### Two 1099s no longer overwrite each other
+
+Wages accumulated across employers; everything else replaced, on the
+reasoning that two 1098-Ts in one year means one is wrong. Real students
+break that immediately. Two banks means two 1099-INTs. Two servicers means
+two 1098-Es. A transfer student has a 1098-T from each school.
+
+Replacing meant the second document silently erased the first, with
+nothing on screen to say anything had been dropped. Every figure now adds,
+which is safe because the same file cannot be added twice and removing a
+file subtracts exactly what it contributed. Where a figure is about to
+join one already in a box, the review row says so and shows the total.
+
+Low confidence figures also arrive unticked now. Applying one has to be a
+deliberate act, because the reader is saying it may be wrong.
 
 ## October: light is the default, dark is a choice
 
