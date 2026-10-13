@@ -161,6 +161,105 @@ async function main() {
   check("The plan opens with the action list", actions.firstCard === "action-list");
   check("The action list has numbered steps", actions.steps >= 4, "steps: " + actions.steps);
 
+  /* Dark mode is where a token-based palette usually breaks: an accent
+     that reads as a background in one theme becomes a pale fill with
+     white text in the other. These measure the real painted colours. */
+  const contrast = await page.evaluate(() => {
+    function lum(c) {
+      const [r, g, b] = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number).map(v => {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+    function ratio(fg, bg) {
+      const a = lum(fg), b = lum(bg);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    }
+    function measure() {
+      const out = {};
+      const body = getComputedStyle(document.body).backgroundColor;
+      out.bodyText = ratio(getComputedStyle(document.body).color, body);
+
+      const primary = document.querySelector("[data-next]");
+      if (primary) {
+        const s = getComputedStyle(primary);
+        out.primaryButton = ratio(s.color, s.backgroundColor);
+      }
+      const accent = document.querySelector(".btn-green") || document.querySelector(".nav-cta");
+      if (accent) {
+        const s = getComputedStyle(accent);
+        out.accentButton = ratio(s.color, s.backgroundColor);
+      }
+      const panel = document.querySelector(".panel");
+      if (panel) {
+        const s = getComputedStyle(panel);
+        out.panelText = ratio(getComputedStyle(document.body).color, s.backgroundColor);
+      }
+      return out;
+    }
+    const results = {};
+    document.documentElement.setAttribute("data-theme", "light");
+    results.light = measure();
+    document.documentElement.setAttribute("data-theme", "dark");
+    results.dark = measure();
+    document.documentElement.removeAttribute("data-theme");
+    return results;
+  });
+
+  ["light", "dark"].forEach(function (mode) {
+    Object.keys(contrast[mode]).forEach(function (what) {
+      const r = contrast[mode][what];
+      check(mode + " theme: " + what + " meets 4.5:1 contrast",
+        r >= 4.5, "ratio " + r.toFixed(2) + ":1");
+    });
+  });
+
+  check("A theme control is present", await page.evaluate(() => !!document.getElementById("theme-toggle")));
+
+  /* Enter should advance a section, the way any form behaves. */
+  const keyed = await page.evaluate(async () => {
+    go(0, false);
+    document.querySelector('input[name="status"][value="citizen"]').checked = true;
+    document.querySelector('input[name="ssn"][value="yes"]').checked = true;
+    document.getElementById("age").focus();
+    document.getElementById("age").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    return current;
+  });
+  check("Enter advances to the next section", keyed === 1, "landed on section " + keyed);
+
+  /* Answers round-trip through a saved file, and documents never do. */
+  const roundTrip = await page.evaluate(() => {
+    go(0, false);
+    document.querySelector('input[name="status"][value="citizen"]').checked = true;
+    document.getElementById("age").value = "21";
+    document.getElementById("w2wage").value = "9100";
+    const saved = answersToObject();
+
+    document.getElementById("age").value = "";
+    document.getElementById("w2wage").value = "";
+    document.querySelector('input[name="status"][value="citizen"]').checked = false;
+    applyAnswers(saved);
+
+    return {
+      age: document.getElementById("age").value,
+      wage: document.getElementById("w2wage").value,
+      status: document.querySelector('input[name="status"][value="citizen"]').checked,
+      mentionsFiles: JSON.stringify(saved).toLowerCase().indexOf(".pdf") > -1
+    };
+  });
+  check("Saved answers restore exactly", roundTrip.age === "21" && roundTrip.wage === "9100" && roundTrip.status,
+    JSON.stringify(roundTrip));
+  check("A saved file carries no document contents", roundTrip.mentionsFiles === false);
+
+  /* A file from another tax year must be refused, not silently applied. */
+  const wrongYear = await page.evaluate(() => {
+    document.getElementById("age").value = "21";
+    applyAnswers({ version: 1, taxYear: 1999, fields: { age: "55" }, radios: {}, checks: [] });
+    return document.getElementById("age").value;
+  });
+  check("A saved file from another tax year is refused", wrongYear === "21", "age became " + wrongYear);
+
   /* Reading a document must also stay local, worker and all. */
   check("Reading a document contacts nothing offsite", offsite.length === 0, offsite.join(" | "));
 

@@ -13,6 +13,7 @@
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="icon" href="../assets/images/filing-folder.png" type="image/png" />
 <meta name="theme-color" content="#101519" />
+<script src="../assets/js/theme.js"></script>
 <link rel="stylesheet" href="../assets/css/base.css" />
 <link rel="stylesheet" href="../assets/css/layout.css" />
 <link rel="stylesheet" href="../assets/css/components.css" />
@@ -41,7 +42,7 @@
   <div class="wrap">
     <p class="eyebrow">Tax year <span data-tax="year">2026</span>, due <span data-tax="deadline">April 15, 2027</span></p>
     <h1 style="font-size:31px;margin-bottom:8px">Your filing walkthrough</h1>
-    <p>Refreshing or closing this tab clears your answers. Save your completed plan before you leave.</p>
+    <p>Nothing is stored anywhere, so refreshing or closing this tab clears your answers. You can save them to a file at the end and resume from it later. Press Enter to move on, or Alt with the arrow keys to move between sections.</p>
   </div>
 </div>
 
@@ -53,6 +54,9 @@
       <summary>View summary and sections</summary>
       <div class="rail-content">
     <p class="rail-title">Sections</p>
+    <div class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="9" aria-valuenow="1" aria-label="Walkthrough progress" id="progress">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
     <ul class="steps" id="steps"></ul>
 
     <div class="summary" aria-live="polite">
@@ -124,7 +128,15 @@
         </div>
       </fieldset>
 
-      <div class="panel-actions"><div class="spacer"></div><span class="error" role="alert" tabindex="-1" data-err="0"></span><button type="button" class="btn" data-next="0">Continue</button></div>
+      <div class="note save-note" hidden></div>
+
+      <div class="panel-actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="load-answers">Resume from a saved file</button>
+        <input type="file" id="answers-file" accept=".json,application/json" hidden />
+        <div class="spacer"></div>
+        <span class="error" role="alert" tabindex="-1" data-err="0"></span>
+        <button type="button" class="btn" data-next="0">Continue</button>
+      </div>
     </section>
 
     <section class="panel" id="p1" hidden>
@@ -555,9 +567,11 @@
         <button type="button" class="btn btn-ghost" data-back="8">Back</button>
         <button type="button" class="btn btn-green" id="show-worksheet">Show my step-by-step worksheet</button>
         <button type="button" class="btn btn-ghost" id="print">Save as PDF</button>
+        <button type="button" class="btn btn-ghost" id="save-answers">Save my answers to a file</button>
         <div class="spacer"></div>
         <button type="button" class="btn btn-ghost" id="restart">Start over</button>
       </div>
+      <div class="note save-note" hidden></div>
     </section>
 
   </main>
@@ -569,6 +583,7 @@
       <p>Campus Filing is a student project. It is educational software, not tax preparation, and it does not transmit returns. Figures reflect tax year <span data-tax="year">2026</span> rules published in IRS Revenue Procedure 2025-32 and should be confirmed against IRS Publication 501, Publication 970, and your state revenue department before you file.</p>
       <p>No Social Security numbers, bank account numbers, or uploaded documents are collected or transmitted. <a href="../privacy.html">How we handle data</a></p>
       <p>Copyright 2026 Campus Filing, a student project at the George Washington University School of Business. Not affiliated with the Internal Revenue Service.</p>
+      <p class="footer-theme"><button type="button" class="btn btn-ghost btn-sm" id="theme-toggle" aria-pressed="false">Switch to dark</button></p>
       </div>
   </div>
 </footer>

@@ -13,6 +13,7 @@
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="icon" href="assets/images/filing-folder.png" type="image/png" />
 <meta name="theme-color" content="#101519" />
+<script src="assets/js/theme.js"></script>
 <link rel="stylesheet" href="assets/css/base.css" />
 <link rel="stylesheet" href="assets/css/layout.css" />
 <link rel="stylesheet" href="assets/css/components.css" />
@@ -59,8 +60,10 @@
     </ul>
 
     <h2>What happens to your answers</h2>
-    <p>The walkthrough runs entirely in your browser. Your answers live in page memory and are gone the moment you close the tab. Nothing is written to a server, a database, or browser storage.</p>
-    <p>That is also why there is no save button yet. Saving requires an account, an account requires a database, and a database holding student income figures is a responsibility this project takes seriously rather than casually.</p>
+    <p>The walkthrough runs entirely in your browser. Your answers live in page memory and are gone the moment you close the tab. Nothing is written to a server or a database.</p>
+    <p>One value is kept in browser storage, and only one: whether you chose the light or the dark theme. It is the word <code>light</code> or <code>dark</code> under the key <code>campusfiling-theme</code>, it never leaves your browser, and clearing your site data removes it. No answer, figure or document is stored there.</p>
+    <p>That is also why there is no account. Saving a return across visits requires a database, and a database holding student income figures is a responsibility this project takes seriously rather than casually.</p>
+    <p>Instead, the walkthrough can write your answers to a file you keep yourself, and read one back when you return. The file goes to your downloads folder, you control it, and you can delete it. Your uploaded documents are deliberately left out of it, because a saved file would otherwise contain the contents of your W-2.</p>
 
     <h2>What happens to your documents</h2>
     <p>In this build, reading happens inside your browser. A PDF is opened locally by a reader served from this site, its text layer is searched for labelled amounts, and the file itself is never transmitted anywhere. Close the tab and both the file and anything read from it are gone.</p>
@@ -132,6 +135,7 @@
     <div class="footer-legal">
       <p>Campus Filing is a student project. It is educational software, not tax preparation, and it does not transmit returns. Figures reflect tax year <span data-tax="year">2026</span> rules published in IRS Revenue Procedure 2025-32.</p>
       <p>Copyright 2026 Campus Filing, a student project at the George Washington University School of Business. Not affiliated with the Internal Revenue Service.</p>
+      <p class="footer-theme"><button type="button" class="btn btn-ghost btn-sm" id="theme-toggle" aria-pressed="false">Switch to dark</button></p>
       </div>
   </div>
 </footer>

@@ -75,6 +75,94 @@
   --shadow: 0 1px 2px rgba(16, 21, 25, .06), 0 4px 12px rgba(16, 21, 25, .04);
   --measure: 68ch;
   --wide: 1200px;
+
+  /* Filled controls carry their own pair. An accent used as a background
+     cannot simply be flipped for dark mode: --forest is dark enough for
+     white text on paper and light enough to read on a dark surface, and
+     those are not the same colour. Keeping the pair explicit is what
+     stops a dark theme from producing white-on-pale buttons. */
+  --btn-primary-bg: #123B5E;
+  --btn-primary-bg-hover: #0D2E4A;
+  --btn-primary-fg: #FFFFFF;
+  --btn-accent-bg: #1B6B4C;
+  --btn-accent-bg-hover: #155840;
+  --btn-accent-fg: #FFFFFF;
+  --prefill-bg: #F4FAF6;
+  --drop-bg: var(--paper);
+}
+
+/* Dark theme. Applied from the system preference, and overridable by the
+   control in the footer, which writes the single value this site keeps in
+   browser storage. */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #E6ECF0;
+    --slate: #AFBAC2;
+    --muted: #8A959D;
+    --navy: #8CC0E8;
+    --navy-dark: #A7D2F2;
+    --blue: #6BAEDE;
+    --blue-soft: #17242E;
+    --forest: #74CBA0;
+    --forest-dark: #8FDBB5;
+    --sage: #14271E;
+    --amber: #E0AC52;
+    --amber-soft: #2B2316;
+    --rust: #E89181;
+    --rust-soft: #2D1C18;
+    --paper: #0F1418;
+    --sand: #1E262D;
+    --line: #2E3840;
+    --line-soft: #242D34;
+    --white: #171E24;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 14px rgba(0, 0, 0, .3);
+    --btn-primary-bg: #3E8FCC;
+    --btn-primary-bg-hover: #58A3DC;
+    --btn-primary-fg: #06121C;
+    --btn-accent-bg: #2E9B6E;
+    --btn-accent-bg-hover: #3FB081;
+    --btn-accent-fg: #04140D;
+    --prefill-bg: #16291F;
+    --drop-bg: #131A1F;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #E6ECF0;
+  --slate: #AFBAC2;
+  --muted: #8A959D;
+  --navy: #8CC0E8;
+  --navy-dark: #A7D2F2;
+  --blue: #6BAEDE;
+  --blue-soft: #17242E;
+  --forest: #74CBA0;
+  --forest-dark: #8FDBB5;
+  --sage: #14271E;
+  --amber: #E0AC52;
+  --amber-soft: #2B2316;
+  --rust: #E89181;
+  --rust-soft: #2D1C18;
+  --paper: #0F1418;
+  --sand: #1E262D;
+  --line: #2E3840;
+  --line-soft: #242D34;
+  --white: #171E24;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 14px rgba(0, 0, 0, .3);
+  --btn-primary-bg: #3E8FCC;
+  --btn-primary-bg-hover: #58A3DC;
+  --btn-primary-fg: #06121C;
+  --btn-accent-bg: #2E9B6E;
+  --btn-accent-bg-hover: #3FB081;
+  --btn-accent-fg: #04140D;
+  --prefill-bg: #16291F;
+  --drop-bg: #131A1F;
+}
+
+:root { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; }
 }
 
 *, *::before, *::after { box-sizing: border-box; }

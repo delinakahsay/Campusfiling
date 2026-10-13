@@ -79,6 +79,8 @@ function init() {
   wireReactions();
   wireFiles();
   wireWipe();
+  wireKeys();
+  wireSave();
 
   document.addEventListener("input", function () {
     document.querySelectorAll(".error").forEach(function (e) { e.textContent = ""; });
@@ -91,7 +93,39 @@ function init() {
   if (wsBtn) wsBtn.addEventListener("click", buildWorksheet);
   $("restart").addEventListener("click", restart);
 
-  go(0);
+  go(0, false);
+}
+
+/* ---------- keyboard ----------
+
+   Nine sections of radio buttons and number fields is a lot of reaching
+   for the mouse. Enter advances from any field, which is what people
+   expect from a form, and Alt with the arrow keys moves between sections
+   without leaving the keyboard at all.
+
+   Enter is deliberately ignored inside a textarea, and on buttons and
+   links, where it already means something else. */
+
+function wireKeys() {
+  document.addEventListener("keydown", function (e) {
+    if (e.altKey && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+      e.preventDefault();
+      if (e.key === "ArrowLeft") { if (current > 0) go(current - 1); return; }
+      if (current < SECTIONS.length - 1 && validate(current)) go(current + 1);
+      return;
+    }
+
+    if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+
+    const el = e.target;
+    const tag = el && el.tagName;
+    if (tag === "TEXTAREA" || tag === "BUTTON" || tag === "A" || tag === "SUMMARY") return;
+    if (el && el.isContentEditable) return;
+    if (current >= SECTIONS.length - 1) return;
+
+    e.preventDefault();
+    if (validate(current)) go(current + 1);
+  });
 }
 
 /* ---------- navigation ---------- */
@@ -105,7 +139,12 @@ function wireRail() {
   compact.addEventListener("change", syncRail);
 }
 
-function go(i) {
+/* moveFocus is false for the very first render. Focusing the heading is
+   the right thing when someone has just pressed Continue, and the wrong
+   thing on page load, where it paints a focus ring around the title
+   before anyone has touched the page. */
+function go(i, moveFocus) {
+  if (moveFocus === undefined) moveFocus = true;
   current = i;
   furthest = Math.max(furthest, i);
 
@@ -128,12 +167,20 @@ function go(i) {
   refreshSummary();
   const progress = $("mobile-progress");
   if (progress) progress.textContent = "Step " + (i + 1) + " of " + SECTIONS.length + " · " + SECTIONS[i];
+
+  const bar = $("progress-bar"), track = $("progress");
+  if (bar) bar.style.width = Math.round(((i + 1) / SECTIONS.length) * 100) + "%";
+  if (track) {
+    track.setAttribute("aria-valuenow", String(i + 1));
+    track.setAttribute("aria-valuetext", "Section " + (i + 1) + " of " + SECTIONS.length + ", " + SECTIONS[i]);
+  }
   const rail = $("rail-disclosure");
   if (rail && window.matchMedia("(max-width: 940px)").matches) rail.open = false;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
 
   /* Move keyboard focus to the new section heading. */
+  if (!moveFocus) return;
   const heading = $("p" + i) && $("p" + i).querySelector("h2");
   if (heading) { heading.setAttribute("tabindex", "-1"); heading.focus({ preventScroll: true }); }
 }
@@ -799,6 +846,112 @@ function loadDemoFigures() {
   });
 
   refreshSummary();
+}
+
+/* ---------- saving and resuming ----------
+
+   Nothing is kept between visits, which is the point, but it also means a
+   closed tab throws away twenty minutes of work. So answers can be
+   written to a file the person keeps themselves. No account, no server,
+   no browser storage: a file on their disk, which they can delete.
+
+   Uploaded documents are deliberately not included. A saved file would
+   then contain the contents of a W-2, which is exactly the thing this
+   project refuses to put anywhere it does not control. */
+
+const SAVE_VERSION = 1;
+
+function answersToObject() {
+  const data = { version: SAVE_VERSION, taxYear: TAX.year, savedAt: new Date().toISOString(),
+    fields: {}, radios: {}, checks: [] };
+
+  document.querySelectorAll(".panel input, .panel select").forEach(function (el) {
+    if (el.type === "file") return;
+    if (el.type === "radio") { if (el.checked) data.radios[el.name] = el.value; return; }
+    if (el.type === "checkbox") { if (el.checked) data.checks.push(el.name + "|" + el.value); return; }
+    if (el.id && el.value !== "") data.fields[el.id] = el.value;
+  });
+
+  return data;
+}
+
+function saveAnswers() {
+  const data = answersToObject();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "campus-filing-" + TAX.year + "-answers.json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+
+  say("Answers saved to your downloads. Your uploaded documents are not in that file, by design, so you will need to add them again when you resume.", "note-good");
+}
+
+function applyAnswers(data) {
+  if (!data || data.version !== SAVE_VERSION) {
+    say("That file was not written by this walkthrough, or was written by a different version of it. Nothing was changed.", "note-warn");
+    return;
+  }
+  if (data.taxYear !== TAX.year) {
+    say("That file holds tax year " + data.taxYear + " answers and this walkthrough is for " + TAX.year + ". Nothing was changed, because the thresholds differ between years.", "note-warn");
+    return;
+  }
+
+  document.querySelectorAll(".panel input, .panel select").forEach(function (el) {
+    if (el.type === "file") return;
+    if (el.type === "radio") { el.checked = data.radios[el.name] === el.value; return; }
+    if (el.type === "checkbox") { el.checked = (data.checks || []).indexOf(el.name + "|" + el.value) > -1; return; }
+    if (el.id) el.value = Object.prototype.hasOwnProperty.call(data.fields, el.id) ? data.fields[el.id] : "";
+  });
+
+  furthest = SECTIONS.length - 1;
+  document.querySelectorAll("input, select").forEach(function (el) {
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  refreshSummary();
+  go(0);
+
+  const when = data.savedAt ? new Date(data.savedAt).toLocaleDateString() : "earlier";
+  say("Answers from " + when + " restored. Every section is open, so you can jump straight to what you were working on. Add your documents again if you want them read.", "note-good");
+}
+
+function loadAnswers(file) {
+  const reader = new FileReader();
+  reader.onload = function () {
+    let data = null;
+    try { data = JSON.parse(reader.result); }
+    catch (e) { say("That file could not be read as saved answers.", "note-warn"); return; }
+    applyAnswers(data);
+  };
+  reader.onerror = function () { say("That file could not be opened.", "note-warn"); };
+  reader.readAsText(file);
+}
+
+/* Saving can be started from the first section or the last, so the
+   message goes to the note inside whichever section is on screen. */
+function say(message, kind) {
+  const panel = $("p" + current);
+  const note = (panel && panel.querySelector(".save-note")) || document.querySelector(".save-note");
+  if (!note) return;
+  document.querySelectorAll(".save-note").forEach(function (n) { n.hidden = true; });
+  note.hidden = false;
+  note.className = "note save-note " + (kind || "");
+  note.textContent = message;
+}
+
+function wireSave() {
+  const save = $("save-answers"), loadBtn = $("load-answers"), input = $("answers-file");
+  if (save) save.addEventListener("click", saveAnswers);
+  if (loadBtn && input) {
+    loadBtn.addEventListener("click", function () { input.click(); });
+    input.addEventListener("change", function (e) {
+      if (e.target.files && e.target.files[0]) loadAnswers(e.target.files[0]);
+      e.target.value = "";
+    });
+  }
 }
 
 /* ---------- validation ---------- */

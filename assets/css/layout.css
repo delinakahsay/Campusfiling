@@ -59,15 +59,15 @@
 }
 
 .nav-cta {
-  background: var(--forest);
-  color: var(--white) !important;
+  background: var(--btn-accent-bg);
+  color: var(--btn-accent-fg) !important;
   padding: 8px 16px !important;
   border-radius: var(--radius);
   border-bottom: none !important;
   font-weight: 500;
 }
 
-.nav-cta:hover { background: var(--forest-dark); }
+.nav-cta:hover { background: var(--btn-accent-bg-hover); }
 
 .nav-toggle {
   display: none;
@@ -192,6 +192,8 @@
 .footer-legal { padding-top: 22px; font-size: 13px; color: #7C878D; }
 
 .footer-legal p { max-width: 88ch; margin-bottom: 8px; }
+
+.footer-theme { margin-top: 14px; }
 
 @media (max-width: 900px) {
   .wrap, .header-inner { padding: 0 20px; }
