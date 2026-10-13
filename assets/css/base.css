@@ -1,6 +1,56 @@
 /* Campus Filing: design tokens, reset, and typography.
    Loaded first on every page. Nothing here is page specific. */
 
+/* Fonts are served from this site, not from Google. A webfont request
+   carries the visitor's IP address and the page they are on to a third
+   party, which is a strange thing for a tax tool to do while promising
+   that nothing leaves the tab. Self-hosting also means the site renders
+   identically on a campus network that blocks external font hosts.
+
+   Latin subsets only, and only the weights actually used: 100KB in total,
+   less than the Google request it replaces. Public Sans and Newsreader
+   are both under the SIL Open Font License. */
+
+@font-face {
+  font-family: "Public Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/public-sans-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Public Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/public-sans-latin-500-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Public Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/public-sans-latin-600-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/newsreader-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/newsreader-latin-500-normal.woff2") format("woff2");
+}
+
 :root {
   --ink: #101519;
   --slate: #3A464D;

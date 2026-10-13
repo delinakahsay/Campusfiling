@@ -13,9 +13,6 @@
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="icon" href="assets/images/filing-folder.png" type="image/png" />
 <meta name="theme-color" content="#101519" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="assets/css/base.css" />
 <link rel="stylesheet" href="assets/css/layout.css" />
 <link rel="stylesheet" href="assets/css/components.css" />
@@ -66,15 +63,21 @@
     <p>That is also why there is no save button yet. Saving requires an account, an account requires a database, and a database holding student income figures is a responsibility this project takes seriously rather than casually.</p>
 
     <h2>What happens to your documents</h2>
-    <p>In this build, reading happens inside your browser. A PDF is opened locally, its text layer is searched for labelled amounts, and the file itself is never transmitted. Close the tab and both the file and anything read from it are gone.</p>
+    <p>In this build, reading happens inside your browser. A PDF is opened locally by a reader served from this site, its text layer is searched for labelled amounts, and the file itself is never transmitted anywhere. Close the tab and both the file and anything read from it are gone.</p>
     <p>No amount is ever written into your answers on its own. Everything found is shown in a review table first, against the form it came from, for you to check and correct. Forms are laid out differently by every issuer, so a misread is expected rather than exceptional, and the review step exists so a wrong number is always visible before it counts.</p>
     <p>Photographs and scans hold a picture of the form rather than readable text. There is no character recognition here, so those files are listed with your records and you type the figures yourself.</p>
 
     <h2>What changes when accounts arrive</h2>
     <p>A later version will store documents and profiles so a return can be picked up next January. That version will hold real financial documents belonging to real students, which is a different responsibility from this one, and this page will describe exactly what is retained, where it lives, how it is encrypted, and how to delete it, before the feature ships rather than after.</p>
 
+    <h2>No third party is involved at all</h2>
+    <p>This site loads nothing from anywhere else. The fonts are served from here rather than from Google. The PDF reader is served from here rather than from a CDN. There is no analytics script, no tag manager, no embedded widget, and no advertising pixel anywhere on the site.</p>
+    <p>That matters because a third-party request does not have to carry your answers to tell someone something. A font request alone tells that company your network address, the page you are on, and the time you were on it. For a tax tool used by students, that is a strange thing to hand over.</p>
+    <p>A <span class="formref">Content-Security-Policy</span> header enforces it rather than relying on us to remember. The policy permits connections only to this site, forbids inline script, blocks the page from submitting a form anywhere, and blocks it from being framed by another site. If someone later added a tracking script to this project, the browser would refuse to run it.</p>
+
     <h2>How to verify this yourself</h2>
-    <p>Open your browser's developer tools, switch to the Network tab, and run the entire walkthrough. You will see requests for fonts and stylesheets and nothing else. No request carries your answers.</p>
+    <p>Open your browser's developer tools, switch to the Network tab, and run the entire walkthrough including a document upload. Every request will be to this domain. Nothing goes anywhere else, and no request carries your answers.</p>
+    <p>You do not have to take that on trust between releases either. The project's browser test suite loads every page, reads a PDF, and fails the build if any request leaves this domain.</p>
   </div>
 
   <div>

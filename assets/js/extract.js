@@ -33,8 +33,28 @@
    goes to a review table first and the user confirms it against the
    paper. A silent wrong number is worse than no number. */
 
-const PDFJS_SRC = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+/* pdf.js is served from this site rather than a CDN. Two reasons, and
+   both are the point of the project:
+
+   1. The privacy page promises that reading a document contacts nothing.
+      A CDN request is a contact, and it tells Cloudflare which visitor
+      opened a tax tool and when.
+   2. Campus and corporate networks block CDNs often enough that the
+      upload feature would fail for exactly the students least able to
+      work out why.
+
+   The version here is pdfjs-dist 3.11.174, under assets/vendor/pdfjs,
+   Apache 2.0, licence alongside it. Updating it is a deliberate act. */
+
+const PDFJS_BASE = (function () {
+  if (typeof document === "undefined") return "";
+  const s = document.currentScript;
+  if (s && s.src) return s.src.replace(/js\/extract\.js.*$/, "vendor/pdfjs/");
+  return "/assets/vendor/pdfjs/";
+})();
+
+const PDFJS_SRC = PDFJS_BASE + "pdf.min.js";
+const PDFJS_WORKER = PDFJS_BASE + "pdf.worker.min.js";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_PAGES = 8;
@@ -53,7 +73,7 @@ function loadPdfJs() {
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
       resolve(window.pdfjsLib);
     };
-    s.onerror = function () { reject(new Error("pdf.js could not be fetched")); };
+    s.onerror = function () { pdfjsPromise = null; reject(new Error("the PDF reader could not be loaded")); };
     document.head.appendChild(s);
   });
   return pdfjsPromise;
@@ -375,9 +395,12 @@ async function readDocument(file) {
     lines = await pdfLines(file);
   } catch (e) {
     result.needsManual = true;
-    result.note = /password|encrypt/i.test(e.message || "")
+    const msg = e && e.message ? e.message : "";
+    result.note = /password|encrypt/i.test(msg)
       ? "This PDF is password protected. Open it in a PDF reader, save an unlocked copy, and add that instead."
-      : "This PDF could not be opened for reading. It is saved with your records; type the figures from it yourself.";
+      : (/reader could not be loaded/i.test(msg)
+        ? "The PDF reader did not load, so nothing could be read from this file. Your network may be blocking part of this site. The file is listed with your records; type its figures in yourself."
+        : "This PDF could not be opened for reading. It is saved with your records; type the figures from it yourself.");
     return result;
   }
 
