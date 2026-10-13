@@ -30,6 +30,9 @@
 
 .btn-sm { font-size: 14px; padding: 8px 15px; }
 
+/* A destructive button that has been armed by a first click. */
+.btn-armed, .btn-armed:hover { background: var(--rust); border-color: var(--rust); color: var(--white); }
+
 .btn-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 1.4rem 0 0; }
 
 .btn-row .aside { font-size: 14px; color: var(--muted); }

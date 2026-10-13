@@ -78,6 +78,7 @@ function init() {
   wireRail();
   wireReactions();
   wireFiles();
+  wireWipe();
 
   document.addEventListener("input", function () {
     document.querySelectorAll(".error").forEach(function (e) { e.textContent = ""; });
@@ -519,11 +520,25 @@ function wireFiles() {
   if (demo) demo.addEventListener("click", loadDemoFigures);
 }
 
+const ACCEPTED = /\.(pdf|jpe?g|png|heic|heif|webp)$/i;
+
 function handleFiles(list) {
   const files = Array.from(list || []);
   if (!files.length) return;
 
+  const rejected = [];
+
   files.forEach(function (f) {
+    /* The same form added twice would double a wage figure on apply, so
+       a repeat of a name and size already in the list is refused. */
+    const duplicate = A.files.some(function (x) { return x.name === f.name && x.size === f.size; });
+    if (duplicate) { rejected.push(f.name + " is already in the list."); return; }
+
+    if (!ACCEPTED.test(f.name)) {
+      rejected.push(f.name + " is not a PDF or an image, so there is nothing here that can read it.");
+      return;
+    }
+
     const rec = { id: ++fileSeq, name: f.name, size: f.size, type: null,
       status: "reading", note: null, applied: {} };
     A.files.push(rec);
@@ -535,7 +550,7 @@ function handleFiles(list) {
       rec.status = res.found.length ? "found" : (res.needsManual ? "manual" : "recognized");
       if (res.type) autoCheckHaveDoc(res.type);
       if (res.found.length) {
-        res.found.forEach(function (x) { pending.push({ fileId: rec.id, fileName: rec.name, formType: res.type, field: x.field, label: x.label, value: x.value }); });
+        res.found.forEach(function (x) { pending.push({ fileId: rec.id, fileName: rec.name, formType: res.type, field: x.field, label: x.label, value: x.value, confidence: x.confidence || "medium" }); });
       }
       renderFiles();
       renderReview();
@@ -546,9 +561,20 @@ function handleFiles(list) {
       renderFiles();
     });
   });
+
+  const note = $("extract-note");
+  if (note) {
+    if (rejected.length) {
+      note.hidden = false;
+      note.className = "note note-warn";
+      note.textContent = rejected.join(" ");
+    } else if (note.className.indexOf("note-warn") > -1) {
+      note.hidden = true;
+    }
+  }
 }
 
-const TYPE_TO_HAVEDOC = { "W-2": "w2", "1099-NEC": "1099nec", "1099-K": "1099nec",
+const TYPE_TO_HAVEDOC ={ "W-2": "w2", "1099-NEC": "1099nec", "1099-K": "1099nec",
   "1098-T": "1098t", "1099-B": "1099b", "1099-INT": "1099int", "1099-DIV": "1099int",
   "1098-E": "1098e", "1095-A": "1095a" };
 
@@ -625,20 +651,37 @@ function renderReview() {
 
   if (!pending.length) { box.hidden = true; box.innerHTML = ""; return; }
 
+  /* Confidence comes from how the figure was printed. A value in its own
+     column, formatted with a decimal or a comma, is one the reader is
+     fairly sure of. A bare number is not. Showing the difference lets
+     someone spend their checking effort where it matters. */
+  const CONF = {
+    high: ["Clear read", "", "Printed in its own box, formatted as money."],
+    medium: ["Check this", "tag-muted", "Read from beside the caption rather than beneath it."],
+    low: ["Check carefully", "tag-muted", "Not printed as money, so this may not be the right figure."]
+  };
+
+  const lowCount = pending.filter(function (x) { return x.confidence === "low"; }).length;
+
   const rows = pending.map(function (x, i) {
+    const c = CONF[x.confidence] || CONF.medium;
     return '<tr>' +
       '<td><label style="font-weight:400;display:flex;gap:9px;align-items:flex-start">' +
       '<input type="checkbox" data-review="' + i + '" checked />' +
       '<span>' + x.label + '<br /><span style="color:var(--muted);font-size:13px">' + x.formType + ' \u00b7 ' + x.fileName + '</span></span></label></td>' +
-      '<td class="num"><input type="number" data-reviewval="' + i + '" value="' + x.value + '" style="max-width:130px;text-align:right" /></td>' +
+      '<td><span class="tag ' + c[1] + '">' + c[0] + '</span>' +
+      '<div style="color:var(--muted);font-size:12px;margin-top:4px;max-width:30ch">' + c[2] + '</div></td>' +
+      '<td class="num"><input type="number" step="0.01" data-reviewval="' + i + '" value="' + x.value + '" style="max-width:130px;text-align:right" aria-label="' + x.label + ' amount" /></td>' +
       '</tr>';
   }).join("");
 
   box.hidden = false;
   box.innerHTML =
     '<h3 style="margin-top:26px">Check these against your forms</h3>' +
-    '<div class="note note-warn"><p>These amounts were read out of your documents. Issuers lay these forms out very differently, so a misread is normal and expected. Compare each figure to the paper before you apply it, correct anything wrong, and untick anything that does not belong.</p></div>' +
-    '<div class="table-wrap"><table class="data"><thead><tr><th>What was found</th><th class="num">Amount</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="note note-warn"><p>These amounts were read out of your documents. Issuers lay these forms out very differently, so a misread is possible. Compare each figure to the paper before you apply it, correct anything wrong, and untick anything that does not belong.</p>' +
+    (lowCount ? '<p><strong>' + lowCount + (lowCount === 1 ? ' figure was' : ' figures were') + ' read with low confidence.</strong> Start your checking there.</p>' : "") +
+    '</div>' +
+    '<div class="table-wrap"><table class="data"><thead><tr><th>What was found</th><th>How it was read</th><th class="num">Amount</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<div class="btn-row">' +
     '<button type="button" class="btn btn-green btn-sm" id="apply-review">Apply the ticked amounts</button>' +
     '<button type="button" class="btn btn-ghost btn-sm" id="discard-review">Discard, I will type them</button>' +
@@ -817,6 +860,132 @@ function card(kind, title, paras) {
     paras.map(function (p) { return "<p>" + p + "</p>"; }).join("") + '</div>';
 }
 
+/* ---------- the action list ----------
+
+   The cards below explain the reasoning. This explains what to do. It is
+   ordered by what costs the most to get wrong, each step carries either a
+   dollar figure or a date, and anything already done drops off it. */
+
+function softwareChoice(d) {
+  if (A.software === "vita") {
+    return { name: "your campus VITA site", url: "https://irs.treasury.gov/freetaxprep/",
+      why: "certified volunteers, free, and they catch what software misses" };
+  }
+  if (A.software === "freetaxusa") {
+    return { name: "FreeTaxUSA", url: "https://www.freetaxusa.com/", why: "the choice you made, and a good fit here" };
+  }
+  if (A.software === "turbotax") {
+    return { name: "TurboTax", url: "https://turbotax.intuit.com/", why: "the choice you made, though expect the free tier to end once a 1098-T or 1099 goes in" };
+  }
+  if (A.software === "fillable") {
+    return { name: "IRS Free File Fillable Forms", url: "https://www.irs.gov/e-file-providers/free-file-fillable-forms", why: "the choice you made, with no income limit and no interview" };
+  }
+  if (d.seNet >= TAX.selfEmploymentTrigger) {
+    return { name: "FreeTaxUSA", url: "https://www.freetaxusa.com/",
+      why: "Schedule C and Schedule SE are free here, where TurboTax moves gig income to a tier costing well over $100 for the same two forms" };
+  }
+  if (d.agi <= TAX.freeFileIncomeLimit) {
+    return { name: "an IRS Free File partner", url: "https://www.irs.gov/filing/irs-free-file-do-your-taxes-for-free",
+      why: "your income is well under the published Free File limit of " + money(TAX.freeFileIncomeLimit) };
+  }
+  return { name: "FreeTaxUSA", url: "https://www.freetaxusa.com/",
+    why: "free federal filing including the education and investment forms, with a modest per state charge" };
+}
+
+function buildActionList(d) {
+  const steps = [];
+
+  if (A.ssn === "no") {
+    steps.push(["Get a taxpayer number before anything else",
+      "You cannot file without a Social Security number or an ITIN. An ITIN is applied for on <span class='formref'>Form W-7</span>, submitted on paper with your return, and takes several weeks. Start this now, not in April."]);
+  }
+
+  if (d.dep.status === "undetermined" || A.confirmed === "no") {
+    const swing = TAX.singleStandardDeduction - d.sd;
+    steps.push(["Settle the dependency question with your parents",
+      "Ask them one question: are they claiming you this year. " +
+      (swing > 0
+        ? "The answer moves your standard deduction by <strong>" + money(swing) + "</strong> and decides who gets the education credit."
+        : "It decides who claims the education credit, worth up to " + money(TAX.aotcMax) + ".") +
+      " If you both claim, the second return filed is rejected and has to go in on paper, which delays the refund by six to eight weeks."]);
+  }
+
+  const missing = [];
+  const NEED = [
+    ["w2", "W-2", A.w2wage > 0, "your payroll portal, not the mail"],
+    ["1098t", "1098-T", true, "your bursar or student account portal"],
+    ["1099nec", "1099-NEC or 1099-K", A.segross > 0, "each gig platform"],
+    ["1099int", "1099-INT or 1099-DIV", A.interest > 0 || A.dividends > 0, "your bank and brokerage, often not until mid February"],
+    ["1099b", "1099-B", A.gains !== 0, "your brokerage"],
+    ["1098e", "1098-E", A.loanint > 0, "your loan servicer"],
+    ["1095a", "1095-A", A.marketplace === "yes", "Healthcare.gov"],
+    ["prior", "last year's return", true, "wherever you filed last year, for the prior year income figure e-filing asks for"]
+  ];
+  NEED.forEach(function (n) {
+    if (n[2] && A.havedoc.indexOf(n[0]) === -1) missing.push("<span class='formref'>" + n[1] + "</span> from " + n[3]);
+  });
+  if (missing.length) {
+    steps.push(["Collect " + missing.length + " missing document" + (missing.length === 1 ? "" : "s"),
+      "Before you open any software: " + missing.join("; ") + ". Filing without one of these and amending later costs far more time than waiting a week for it."]);
+  }
+
+  if (A.marketplace === "yes" && A.havedoc.indexOf("1095a") === -1) {
+    steps.push(["Do not file until Form 1095-A arrives",
+      "Filing without reconciling a marketplace subsidy on <span class='formref'>Form 8962</span> is the single most common reason a student refund is held. The IRS stops the return rather than rejecting it, so you often hear nothing for months."]);
+  }
+
+  const sw = softwareChoice(d);
+  steps.push(["File with " + sw.name,
+    "Chosen because " + sw.why + ". <a href='" + sw.url + "' rel='noopener noreferrer' target='_blank'>Open it</a> once your documents are in hand, and pick direct deposit rather than a paper check. A check mailed to a campus address over the summer is a common way for a refund to go missing."]);
+
+  if (d.treatAsDependent) {
+    steps.push(["Tick the dependent box on page one",
+      "In the block under your name on <span class='formref'>Form 1040</span>, check <strong>Someone can claim you as a dependent</strong>. In FreeTaxUSA it is on the Personal Information screen; in TurboTax it is phrased as whether anyone else can claim you. Missing it gives you a standard deduction of " + money(TAX.singleStandardDeduction) + " instead of " + money(d.sd) + ", and the IRS corrects it months later."]);
+  }
+
+  if (d.seNet >= TAX.selfEmploymentTrigger) {
+    steps.push(["Add Schedule C and Schedule SE for the gig income",
+      "Net profit of " + money(d.seNet) + " brings self-employment tax of roughly <strong>" + money(d.seTax) + "</strong>, which nobody withheld for you. Deduct your mileage at " + Math.round(TAX.mileageFirstHalf * 100) + " cents through June 30 and " + Math.round(TAX.mileageSecondHalf * 100) + " cents from July 1, splitting your log at that date."]);
+  }
+
+  if (d.taxableScholarship > 0) {
+    steps.push(["Report " + money(d.taxableScholarship) + " of scholarship as income",
+      "It goes on <span class='formref'>Schedule 1, line 8r</span>. Nothing was withheld from that money, which is why students who expected a refund sometimes owe."]);
+  }
+
+  const aotcYears = A.aotc === "unknown" ? null : parseInt(A.aotc, 10);
+  const aotcLeft = aotcYears === null ? null : TAX.aotcLifetimeYears - aotcYears;
+  if (A.halftime === "yes" && aotcLeft !== 0) {
+    steps.push([d.treatAsDependent ? "Send your 1098-T to whoever claims you" : "Claim the education credit on Form 8863",
+      d.treatAsDependent
+        ? "The American Opportunity Credit, up to <strong>" + money(TAX.aotcMax) + "</strong>, goes on their return rather than yours. Send them the 1098-T and your book receipts. Claiming it yourself by mistake flags both returns."
+        : "Worth up to <strong>" + money(TAX.aotcMax) + "</strong>, and it is the single largest number on this page. Add your required books and supplies to the 1098-T figure; the form leaves them out and most students never add them back."]);
+  }
+
+  const stateParts = stateSummary(d.states);
+  if (d.states.nonresident.length && d.states.resident) {
+    steps.push(["File the " + d.states.nonresident.join(" and ") + " return before the " + d.states.resident + " one",
+      "In that order your " + d.states.resident + " return can credit the tax paid to " + d.states.nonresident.join(" and ") + ". In the reverse order the credit does not compute and you are taxed twice on the same wages."]);
+  } else if (stateParts.length) {
+    steps.push(["File your state return: " + stateParts.join(", "),
+      "State returns are separate filings with their own forms, and filing software usually charges per state."]);
+  }
+
+  steps.push(["Submit by " + TAX.deadline,
+    d.refund >= 0
+      ? "You are owed an estimated <strong>" + money(d.refund) + "</strong>. There is no penalty for filing late when you are owed money, but the refund expires three years after the deadline."
+      : "You are estimated to owe <strong>" + money(Math.abs(d.refund)) + "</strong>. File on time even if you cannot pay, then set up an IRS payment plan. The late filing penalty is roughly ten times the late payment penalty."]);
+
+  return '<div class="result-card is-ok" id="action-list">' +
+    '<h3>Do these, in this order</h3>' +
+    '<p>Everything below this card is the reasoning. This is the work.</p>' +
+    '<ol class="action-steps">' +
+    steps.map(function (s) {
+      return '<li><b>' + s[0] + '</b><span>' + s[1] + '</span></li>';
+    }).join("") +
+    '</ol></div>';
+}
+
 function buildPlan() {
   collect();
   const d = derive();
@@ -834,6 +1003,10 @@ function buildPlan() {
   }
 
   let h = "";
+
+  /* The action list goes first. Anyone who reads one card should read the
+     one that says what to do. */
+  if (d.dep.status !== "unsupported") h += buildActionList(d);
 
   if (A.status === "unsure") {
     h += card("flag", "Settle your tax residency first", [
@@ -1274,8 +1447,53 @@ function buildWorksheet() {
 
 /* ---------- restart ---------- */
 
+/* Erasing is confirmed inline rather than with window.confirm, because a
+   modal dialog blocks the page and reads as a browser warning rather than
+   a deliberate choice. */
+function wireWipe() {
+  const open = $("wipe"), panel = $("wipe-confirm"), yes = $("wipe-yes"), no = $("wipe-no");
+  if (!open || !panel) return;
+  open.addEventListener("click", function () {
+    panel.hidden = false;
+    open.hidden = true;
+    if (yes) yes.focus();
+  });
+  if (no) no.addEventListener("click", function () { panel.hidden = true; open.hidden = false; open.focus(); });
+  if (yes) yes.addEventListener("click", function () {
+    panel.hidden = true;
+    open.hidden = false;
+    wipe();
+  });
+}
+
+/* The "Start over" button at the foot of the plan arms itself on the first
+   click and erases on the second, so a stray click cannot throw away an
+   hour of answers. It disarms itself after a few seconds. */
+let restartArmed = null;
+
 function restart() {
-  if (!confirm("Clear every answer and start over?")) return;
+  const btn = $("restart");
+  if (!btn) { wipe(); return; }
+
+  if (restartArmed) {
+    clearTimeout(restartArmed);
+    restartArmed = null;
+    btn.textContent = "Start over";
+    btn.classList.remove("btn-armed");
+    wipe();
+    return;
+  }
+
+  btn.textContent = "Click again to erase everything";
+  btn.classList.add("btn-armed");
+  restartArmed = setTimeout(function () {
+    restartArmed = null;
+    btn.textContent = "Start over";
+    btn.classList.remove("btn-armed");
+  }, 5000);
+}
+
+function wipe() {
   document.querySelectorAll(".panel input, .panel select").forEach(function (el) {
     if (el.type === "radio" || el.type === "checkbox") el.checked = false;
     else el.value = "";

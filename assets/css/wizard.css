@@ -246,3 +246,92 @@
 
 .steps button:disabled { cursor: default; opacity: .55; }
 .steps button:disabled:hover { background: transparent; color: var(--slate); }
+
+/* ---------- privacy strip ---------- */
+
+.privacy-strip {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--white);
+  font-size: 13px;
+  color: var(--slate);
+}
+
+.privacy-strip p { max-width: none; margin: 0 0 8px; line-height: 1.5; }
+
+.privacy-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--forest);
+  font-size: 13px;
+}
+
+.privacy-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--forest);
+  flex-shrink: 0;
+}
+
+.privacy-strip .btn-sm { font-size: 13px; padding: 6px 12px; }
+
+.privacy-confirm[hidden] { display: none; }
+
+.privacy-confirm { margin-top: 10px; color: var(--rust); }
+
+.privacy-confirm .btn-row { margin: 0; display: flex; gap: 8px; }
+
+/* ---------- the action list ---------- */
+
+#action-list { border-left-width: 4px; }
+
+#action-list > p { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+
+.action-steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+
+.action-steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 4px 14px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.action-steps li:first-child { border-top: none; padding-top: 0; }
+
+.action-steps li::before {
+  content: counter(step);
+  grid-row: span 2;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--forest);
+  background: var(--sage);
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.action-steps b { font-size: 16px; font-weight: 600; align-self: center; }
+
+.action-steps span { font-size: 15px; color: var(--slate); }
+
+@media (max-width: 560px) {
+  .action-steps li { grid-template-columns: 26px minmax(0, 1fr); gap: 4px 10px; }
+}
