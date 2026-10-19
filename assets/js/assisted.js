@@ -173,14 +173,26 @@ function sameAmount(a, b) {
 
 /* Takes both readings of one document and returns the rows to show.
 
-   agreed      both read it, same number. The strongest signal available.
-   assisted    local found nothing or was unsure; the model's figure stands.
-   local       the model declined to read it; the local figure stands.
-   conflict    both read it and they differ. Shown, never resolved.
+   agreed      both read it and got the same number.
+   assisted    the model's figure stands, either because the local reader
+               found nothing or because the two differed. On a real W-2
+               where they differed, the local reader had read 5000 off the
+               page and the model had read 500, and the model was right.
+               It is the better reader and it wins.
+   local       the model declined to read this box; the local figure stands.
 
-   Only agreed and assisted arrive pre-ticked. A conflict is a question
-   for the person holding the paper, and a low local reading on its own is
-   still the thing that was wrong often enough to build this. */
+   Every row arrives ticked. An earlier version left a disagreement
+   unticked and surfaced it to the student as two competing figures, which
+   was wrong twice over: it put an internal implementation detail in front
+   of someone trying to file their taxes, and because "Apply the ticked
+   amounts" then applied nothing, the next section came up empty with no
+   explanation. The check that matters is the review table itself, where
+   every figure is shown against the form it came from and can be edited
+   before it counts. That is the guardrail. Which component read it is not
+   the student's problem.
+
+   supersededLocal keeps what the local reader had said when the two
+   differed. Nothing renders it; it is there for diagnosis. */
 function reconcile(localResult, assistedResult) {
   const rows = [];
   const localFound = (localResult && localResult.found) || [];
@@ -196,15 +208,13 @@ function reconcile(localResult, assistedResult) {
     const label = (local && local.label) || (assisted && FIELD_LABELS[field]) || field;
 
     if (local && assisted) {
-      if (sameAmount(local.value, assisted.value)) {
-        rows.push({ field: field, label: label, value: assisted.value,
-          source: "agreed", confidence: "high", ticked: true,
-          evidence: assisted.evidence || "" });
-      } else {
-        rows.push({ field: field, label: label, value: local.value,
-          source: "conflict", confidence: "low", ticked: false,
-          other: assisted.value, evidence: assisted.evidence || "" });
-      }
+      const same = sameAmount(local.value, assisted.value);
+      rows.push({ field: field, label: label, value: assisted.value,
+        source: same ? "agreed" : "assisted",
+        confidence: same ? "high" : (assisted.confidence || "medium"),
+        ticked: true,
+        supersededLocal: same ? undefined : local.value,
+        evidence: assisted.evidence || "" });
       return;
     }
 
@@ -217,7 +227,7 @@ function reconcile(localResult, assistedResult) {
 
     rows.push({ field: field, label: label, value: local.value,
       source: "local", confidence: local.confidence || "medium",
-      ticked: local.confidence !== "low", evidence: "" });
+      ticked: true, evidence: "" });
   });
 
   return rows;

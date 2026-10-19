@@ -5,12 +5,53 @@ Four suites now. Run all of them from the project root:
 ```
 node tests.js           20 checks, tax math
 node tests-extract.js   19 checks, document reading
-node tests-assisted.js  18 checks, reconciling the two readers
-node tests-ui.js        12 checks, walkthrough interactions against a stub DOM
+node tests-assisted.js  21 checks, reconciling the two readers
+node tests-ui.js        13 checks, walkthrough interactions against a stub DOM
+node tests-flow.js       8 checks, upload to applied, API stubbed
 node tests-browser.js   43 checks, a real browser (npm install playwright)
 ```
 
 None of this constitutes a complete tax-accuracy audit.
+
+## October: the empty next page, and why it was the same bug as the one above
+
+Reported as two problems. They were one.
+
+A student pressed the AI reader, pressed Apply, went to the next section
+and found every box empty. Nothing errored, and every suite passed,
+because every piece did exactly what it had been told to do. The two
+readers had differed on a figure, a difference arrived unticked by
+design, and "Apply the ticked amounts" correctly applied the nothing that
+was ticked.
+
+The design was wrong in two ways at once.
+
+It put an implementation detail in front of someone trying to file their
+taxes. "The two readers disagree" is a sentence about this codebase, not
+about their W-2. It invites doubt in a figure that is usually right and
+offers no way to resolve it beyond what the review table already offered.
+
+And on the document that prompted it, the local reader had read 5000 off
+the page and the model had read 500. The model was right. There was no
+toss-up to present: one reader is better at this, and where they differ
+it should simply win.
+
+So a difference now resolves to the assisted figure, every row arrives
+ticked, and the review table says nothing about which component read
+what. The column that used to explain the machinery now shows the text
+the figure was read from, which is what someone checking against paper
+actually needs. What the local reader had said is kept on the row as
+`supersededLocal` for diagnosis and is never rendered.
+
+The guardrail did not move. Every figure is still shown against its
+source document and is still editable before it counts. That was always
+the check that mattered; the disagreement banner was never doing the work
+it appeared to be doing.
+
+`tests-flow.js` exists because of this. It drives upload, assist, apply,
+and then asserts on the input values in the sections ahead, with the API
+stubbed. The unit suites all passed while this was broken, because the
+bug lived in the space between them.
 
 ## October: a second reader, and a rule for believing it
 

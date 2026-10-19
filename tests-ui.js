@@ -97,15 +97,32 @@ test('Two 1099-INTs add together instead of overwriting each other',()=>{
   context.document.querySelector=prevQS;
 });
 
-/* A figure the reader is unsure of should not arrive pre-ticked. */
-test('A low confidence figure arrives unticked',()=>{
-  vm.runInContext(`pending=[{fileId:21,fileName:'scan.pdf',formType:'W-2',field:'w2fed',label:'Box 2',value:111,confidence:'low'}];
+/* A figure the reader is unsure of is still applied, and flagged.
+
+   It used to arrive unticked. That emptied the next section whenever the
+   readers differed, because Apply then had nothing to apply and said so
+   in a way nobody read. Marking it is the right amount of warning; not
+   applying it is not. */
+test('A low confidence figure is ticked but marked for checking',()=>{
+  vm.runInContext(`pending=[{fileId:21,fileName:'scan.pdf',formType:'W-2',field:'w2fed',label:'Box 2',value:111,confidence:'low',ticked:true}];
     A.files=[{id:21,name:'scan.pdf',size:100,status:'found',applied:{}}];renderReview()`,context);
   const html=elements.get('review').innerHTML;
   const row=html.match(/<input type="checkbox" data-review="0"([^/]*)\/>/);
   assert.ok(row,'the review row should render');
-  assert.ok(!/checked/.test(row[1]),'a low confidence row must not be pre-ticked');
-  assert.ok(/left unticked/i.test(html),'and the banner should say so');
+  assert.ok(/checked/.test(row[1]),'it must be ticked or the next section comes up empty');
+  assert.ok(/harder to read/i.test(html),'and the banner should point at it');
+});
+
+/* Nothing in the review table should name the parts that read the form. */
+test('The review table does not expose the two readers',()=>{
+  vm.runInContext(`pending=[
+      {fileId:31,fileName:'w2.pdf',formType:'W-2',field:'w2wage',label:'Box 1',value:500,confidence:'high',source:'assisted',supersededLocal:5000,ticked:true},
+      {fileId:31,fileName:'w2.pdf',formType:'W-2',field:'w2fed',label:'Box 2',value:320,confidence:'high',source:'agreed',ticked:true}];
+    A.files=[{id:31,name:'w2.pdf',size:100,status:'found',applied:{}}];renderReview()`,context);
+  const html=elements.get('review').innerHTML;
+  assert.ok(!/disagree/i.test(html),'the word disagree must not appear');
+  assert.ok(!/local reader/i.test(html),'the local reader must not be named');
+  assert.ok(!/5,?000/.test(html),'the superseded figure must not be shown');
 });
 
 test('Stipend beyond qualified expenses becomes taxable scholarship income',()=>{

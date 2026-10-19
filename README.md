@@ -55,6 +55,7 @@ campus-filing/
   tests.js              Tax calculation
   tests-extract.js      Document reading, no browser needed
   tests-assisted.js     Reconciling the two readers
+  tests-flow.js         Upload, assist, apply, with the API stubbed
   tests-ui.js           Walkthrough interactions against a stub DOM
   tests-browser.js      Real browser, real pdf.js, contrast, offsite requests
 ```
@@ -64,8 +65,9 @@ campus-filing/
 ```
 node tests.js           20 checks, tax math
 node tests-extract.js   19 checks, document reading
-node tests-assisted.js  18 checks, reconciling the two readers
-node tests-ui.js        12 checks, walkthrough interactions
+node tests-assisted.js  21 checks, reconciling the two readers
+node tests-ui.js        13 checks, walkthrough interactions
+node tests-flow.js       8 checks, upload to applied, API stubbed
 node tests-browser.js   43 checks, needs: npm install playwright
 ```
 

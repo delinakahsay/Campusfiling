@@ -100,44 +100,78 @@ test("Where the AI reader reported nothing, the local figure stands", () => {
   assert.equal(r.ticked, true);
 });
 
-test("A low confidence local figure with no corroboration stays unticked", () => {
+test("A low confidence local figure is still applied, and marked as one to check", () => {
   const rows = reconcile(
     local([{ field: "w2wage", label: "Box 1, wages", value: 1545, confidence: "low" }]),
     ai([])
   );
-  assert.equal(row(rows, "w2wage").ticked, false);
+  assert.equal(row(rows, "w2wage").ticked, true, "leaving it unticked empties the next section");
+  assert.equal(row(rows, "w2wage").confidence, "low", "but it is still flagged for checking");
 });
 
-/* ---------- disagreement, the case the whole design exists for ---------- */
+/* ---------- disagreement ----------
 
-test("Two readers disagreeing applies neither figure", () => {
+   An earlier version showed the student both figures and applied neither.
+   That was wrong twice: it put an internal detail in front of someone
+   trying to file, and because Apply then applied nothing, the next
+   section came up empty with no explanation. On the real document that
+   prompted this, the local reader read 5000 off the page and the model
+   read 500, and the model was right. It is the better reader and it
+   wins. The review table is still where a wrong figure gets caught. */
+
+test("A disagreement resolves to the assisted figure", () => {
   const rows = reconcile(
-    local([{ field: "w2wage", label: "Box 1, wages", value: 1545, confidence: "low" }]),
-    ai([{ field: "w2wage", value: 45000, confidence: "high", evidence: "45,000.00" }])
+    local([{ field: "w2wage", label: "Box 1, wages", value: 5000, confidence: "low" }]),
+    ai([{ field: "w2wage", value: 500, confidence: "high", evidence: "500.00" }])
   );
   const r = row(rows, "w2wage");
-  assert.equal(r.source, "conflict");
-  assert.equal(r.ticked, false, "a disagreement must never be pre-ticked");
+  assert.equal(r.value, 500);
+  assert.equal(r.source, "assisted");
 });
 
-test("A disagreement carries both figures so the person can see them", () => {
+test("A disagreement is ticked, so Apply is never a no-op", () => {
   const rows = reconcile(
-    local([{ field: "w2wage", label: "Box 1, wages", value: 1545, confidence: "low" }]),
-    ai([{ field: "w2wage", value: 45000, confidence: "high", evidence: "45,000.00" }])
+    local([{ field: "w2wage", label: "Box 1, wages", value: 5000, confidence: "low" }]),
+    ai([{ field: "w2wage", value: 500, confidence: "high", evidence: "500.00" }])
   );
-  const r = row(rows, "w2wage");
-  assert.equal(r.value, 1545, "the local figure");
-  assert.equal(r.other, 45000, "the AI figure");
+  assert.equal(row(rows, "w2wage").ticked, true);
 });
 
-test("A confident AI figure does not override a confident local one", () => {
+test("What the local reader had said is kept for diagnosis, not display", () => {
+  const rows = reconcile(
+    local([{ field: "w2wage", label: "Box 1, wages", value: 5000, confidence: "low" }]),
+    ai([{ field: "w2wage", value: 500, confidence: "high", evidence: "500.00" }])
+  );
+  assert.equal(row(rows, "w2wage").supersededLocal, 5000);
+});
+
+test("Agreement carries no superseded figure", () => {
+  const rows = reconcile(
+    local([{ field: "w2wage", label: "Box 1, wages", value: 500, confidence: "high" }]),
+    ai([{ field: "w2wage", value: 500, confidence: "high", evidence: "500.00" }])
+  );
+  assert.equal(row(rows, "w2wage").supersededLocal, undefined);
+});
+
+test("A confident local figure still yields to the assisted one", () => {
   const rows = reconcile(
     local([{ field: "w2wage", label: "Box 1, wages", value: 45000, confidence: "high" }]),
     ai([{ field: "w2wage", value: 54000, confidence: "high", evidence: "54,000.00" }])
   );
-  assert.equal(row(rows, "w2wage").source, "conflict",
-    "two high confidence readers disagreeing is still a disagreement");
-  assert.equal(row(rows, "w2wage").ticked, false);
+  assert.equal(row(rows, "w2wage").value, 54000);
+  assert.equal(row(rows, "w2wage").ticked, true);
+});
+
+test("Every row is ticked, so Apply always applies something", () => {
+  const rows = reconcile(
+    local([
+      { field: "w2wage", label: "Box 1", value: 5000, confidence: "low" },
+      { field: "w2fed", label: "Box 2", value: 320, confidence: "low" }
+    ]),
+    ai([{ field: "w2wage", value: 500, confidence: "low", evidence: "500.00" }])
+  );
+  assert.ok(rows.length > 0);
+  rows.forEach(function (r) { assert.equal(r.ticked, true, r.field + " arrived unticked"); });
 });
 
 /* ---------- several boxes at once ---------- */
@@ -156,7 +190,8 @@ test("Each box is reconciled on its own", () => {
   );
   assert.equal(rows.length, 3);
   assert.equal(row(rows, "w2wage").source, "agreed");
-  assert.equal(row(rows, "w2fed").source, "conflict");
+  assert.equal(row(rows, "w2fed").value, 3200, "the assisted figure wins where they differ");
+  assert.equal(row(rows, "w2fed").supersededLocal, 111);
   assert.equal(row(rows, "w2state").source, "assisted");
 });
 

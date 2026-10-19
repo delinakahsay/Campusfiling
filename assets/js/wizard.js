@@ -816,26 +816,24 @@ function renderReview() {
      column, formatted with a decimal or a comma, is one the reader is
      fairly sure of. A bare number is not. Showing the difference lets
      someone spend their checking effort where it matters. */
+  /* What a student needs here is the figure, where on the form it came
+     from, and the chance to change it. Which component read it is an
+     implementation detail and naming it only invites doubt in a number
+     that is usually right. So the column describes the figure, not the
+     machinery. */
   const CONF = {
-    high: ["Clear read", "", "Printed in its own box, formatted as money."],
-    medium: ["Check this", "tag-muted", "Read from beside the caption rather than beneath it."],
-    low: ["Check carefully", "tag-muted", "Not printed as money, so this may not be the right figure."]
+    high: ["Clear read", "", ""],
+    medium: ["Worth a look", "tag-muted", ""],
+    low: ["Check this one", "tag-muted", "This one was hard to read, so compare it carefully."]
   };
 
-  /* Where a figure came from matters more than how it was formatted once
-     two readers are involved. A source, when there is one, replaces the
-     confidence wording above. */
   const SOURCE = {
-    agreed: ["Both readers agree", "", "The local reader and the AI reader read the same figure independently."],
-    assisted: ["Read by AI", "tag-muted", "The local reader could not read this one. This figure comes from the AI reader alone."],
-    local: ["Read on your device", "tag-muted", "Read locally. The AI reader did not report a figure for this box."],
-    conflict: ["The two readers disagree", "tag-muted", "Neither figure is applied. Open the form and settle it yourself."]
+    agreed: ["Checked twice", "", ""],
+    assisted: ["Read from your form", "", ""],
+    local: ["Read from your form", "", ""]
   };
 
-  const lowCount = pending.filter(function (x) {
-    return x.source !== "conflict" && x.confidence === "low";
-  }).length;
-  const conflictCount = pending.filter(function (x) { return x.source === "conflict"; }).length;
+  const lowCount = pending.filter(function (x) { return x.confidence === "low"; }).length;
 
   /* Two documents can feed one box: two banks, two employers, two schools.
      Where that is about to happen, say so on the row, because a figure
@@ -862,12 +860,9 @@ function renderReview() {
        Where the two readers disagree, neither figure is ticked and both
        are shown, because that is a question for whoever is holding the
        paper and not one this tool should quietly decide. */
-    const ticked = (x.ticked === false || (x.ticked === undefined && x.confidence === "low")) ? "" : " checked";
+    const ticked = x.ticked === false ? "" : " checked";
 
-    const disagreement = x.source === "conflict"
-      ? '<div style="color:var(--rust);font-size:12px;margin-top:4px">Local reader read ' +
-        money(x.value) + '. AI reader read ' + money(x.other) + '.</div>'
-      : "";
+    const disagreement = "";
 
     const evidence = x.evidence
       ? '<div style="color:var(--muted);font-size:12px;margin-top:4px">Read from: <span class="formref">' +
@@ -887,9 +882,8 @@ function renderReview() {
   box.hidden = false;
   box.innerHTML =
     '<h3 style="margin-top:26px">Check these against your forms</h3>' +
-    '<div class="note note-warn"><p>These amounts were read out of your documents. Issuers lay these forms out very differently, so a misread is possible. Compare each figure to the paper before you apply it, correct anything wrong, and untick anything that does not belong.</p>' +
-    (conflictCount ? '<p><strong>The two readers disagree on ' + conflictCount + (conflictCount === 1 ? ' figure.' : ' figures.') + '</strong> Both are shown and neither is applied. Open the form and settle ' + (conflictCount === 1 ? 'it' : 'them') + ' yourself, because a disagreement means one of them is definitely wrong.</p>' : "") +
-    (lowCount ? '<p><strong>' + lowCount + (lowCount === 1 ? ' figure was' : ' figures were') + ' read with low confidence and left unticked.</strong> Check ' + (lowCount === 1 ? 'it' : 'those') + ' against the paper and tick ' + (lowCount === 1 ? 'it' : 'them') + ' only if the figure is right.</p>' : "") +
+    '<div class="note"><p>Here is what was read off your documents. Check each one against the form in front of you, fix anything that looks wrong, and untick anything that does not belong. Then apply them and they will be waiting in the sections ahead.</p>' +
+    (lowCount ? '<p><strong>' + lowCount + (lowCount === 1 ? ' figure was' : ' figures were') + ' harder to read than the rest.</strong> Those are marked, so start there.</p>' : "") +
     '</div>' +
     '<div class="table-wrap"><table class="data"><thead><tr><th>What was found</th><th>How it was read</th><th class="num">Amount</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<div class="btn-row">' +
