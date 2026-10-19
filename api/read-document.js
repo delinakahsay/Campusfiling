@@ -211,7 +211,25 @@ module.exports = async function handler(req, res) {
   clearTimeout(timer);
 
   if (!upstream.ok) {
-    /* The upstream body can echo request content, so it is not forwarded. */
+    /* The upstream body can echo request content, so it is never forwarded
+       to the browser. For diagnosis, the status and the error category are
+       logged, and the upstream message only for the statuses that are about
+       the key or the model rather than the document: those cannot contain
+       anything a student uploaded. */
+    let category = "", detail = "";
+    try {
+      const err = await upstream.json();
+      category = (err && err.error && err.error.type) || "";
+      if ([400, 401, 403, 404].indexOf(upstream.status) > -1) {
+        detail = (err && err.error && err.error.message) || "";
+      }
+    } catch (e) { /* nothing to add */ }
+
+    console.error("assisted reader upstream " + upstream.status +
+      (category ? " " + category : "") +
+      (detail ? ": " + String(detail).slice(0, 300) : "") +
+      " (model " + MODEL + ")");
+
     const status = upstream.status === 429 ? 429 : 502;
     return bad(res, status, upstream.status === 429
       ? "The assisted reader is rate limited right now. Try again shortly, or type this one in."
