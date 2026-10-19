@@ -28,6 +28,15 @@ function apiKey() {
   return process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_KEY || "";
 }
 
+/* An API key created at the organization level is not tied to a workspace,
+   and Anthropic rejects those unless the request names one. A key created
+   inside a workspace carries it already and needs nothing here. Setting
+   this when it is not needed is harmless, so it is simply passed through
+   when present. */
+function workspaceId() {
+  return process.env.ANTHROPIC_WORKSPACE_ID || "";
+}
+
 const MAX_TEXT_CHARS = 60000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_OUTPUT_TOKENS = 1500;
@@ -187,11 +196,11 @@ module.exports = async function handler(req, res) {
     upstream = await fetch(API_URL, {
       method: "POST",
       signal: controller.signal,
-      headers: {
+      headers: Object.assign({
         "content-type": "application/json",
         "x-api-key": key,
         "anthropic-version": API_VERSION
-      },
+      }, workspaceId() ? { "anthropic-workspace-id": workspaceId() } : {}),
       body: JSON.stringify({
         model: MODEL,
         max_tokens: MAX_OUTPUT_TOKENS,
@@ -233,7 +242,9 @@ module.exports = async function handler(req, res) {
       (detail ? ": " + detail : "") + " (model " + MODEL + ")");
 
     const byStatus = {
-      400: "The assisted reader sent a request Anthropic rejected. This is a bug in the deployment, not in your document.",
+      400: /workspace/i.test(detail)
+        ? "The assisted reader's API key is not scoped to a workspace. Either set ANTHROPIC_WORKSPACE_ID on this deployment, or create the key inside a workspace in the Anthropic Console."
+        : "The assisted reader sent a request Anthropic rejected. This is a bug in the deployment, not in your document.",
       401: "The assisted reader's API key is not valid. Check ANTHROPIC_API_KEY on this deployment.",
       403: "The assisted reader's API key is not permitted to do this. Check the key's permissions and that the account is in good standing.",
       404: "The assisted reader is configured for a model this key cannot reach: " + MODEL + ". Set ANTHROPIC_MODEL to a model the account has access to.",

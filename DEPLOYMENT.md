@@ -96,6 +96,19 @@ ANTHROPIC_API_KEY      sk-ant-...        (Production, mark as Secret)
 ANTHROPIC_MODEL        claude-sonnet-5-5 (optional, defaults to this)
 ```
 
+If the key was created at the organization level rather than inside a
+workspace, Anthropic rejects the call with a 400 saying the request must
+name a workspace. Two ways out, either is fine:
+
+```
+ANTHROPIC_WORKSPACE_ID   wrkspc_...   (only for an org-level key)
+```
+
+or create a new key from inside a workspace in the Anthropic Console,
+which carries the workspace with it and needs no extra variable. The
+function passes the header through whenever the variable is set and
+ignores it otherwise, so setting it unnecessarily does no harm.
+
 `ANTHROPIC_KEY` is accepted as an alternative name for the key, because
 getting it slightly wrong costs a deploy and produces a 503 that reads
 like a bug rather than a typo. Prefer `ANTHROPIC_API_KEY`, which is what
