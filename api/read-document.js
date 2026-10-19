@@ -212,28 +212,37 @@ module.exports = async function handler(req, res) {
 
   if (!upstream.ok) {
     /* The upstream body can echo request content, so it is never forwarded
-       to the browser. For diagnosis, the status and the error category are
-       logged, and the upstream message only for the statuses that are about
-       the key or the model rather than the document: those cannot contain
-       anything a student uploaded. */
-    let category = "", detail = "";
+       to the browser. The status and Anthropic's error category are a
+       different matter: they describe the key, the model or the shape of
+       the call, never the document, and without them a misconfigured
+       deployment is indistinguishable from a broken one. */
+    let category = "";
     try {
       const err = await upstream.json();
       category = (err && err.error && err.error.type) || "";
-      if ([400, 401, 403, 404].indexOf(upstream.status) > -1) {
-        detail = (err && err.error && err.error.message) || "";
-      }
     } catch (e) { /* nothing to add */ }
 
-    console.error("assisted reader upstream " + upstream.status +
-      (category ? " " + category : "") +
-      (detail ? ": " + String(detail).slice(0, 300) : "") +
-      " (model " + MODEL + ")");
+    console.error("assisted reader upstream " + upstream.status + " " + category + " (model " + MODEL + ")");
 
-    const status = upstream.status === 429 ? 429 : 502;
-    return bad(res, status, upstream.status === 429
-      ? "The assisted reader is rate limited right now. Try again shortly, or type this one in."
-      : "The assisted reader returned an error. Type this document in by hand.");
+    const byStatus = {
+      400: "The assisted reader sent a request Anthropic rejected. This is a bug in the deployment, not in your document.",
+      401: "The assisted reader's API key is not valid. Check ANTHROPIC_API_KEY on this deployment.",
+      403: "The assisted reader's API key is not permitted to do this. Check the key's permissions and that the account is in good standing.",
+      404: "The assisted reader is configured for a model this key cannot reach: " + MODEL + ". Set ANTHROPIC_MODEL to a model the account has access to.",
+      413: "That document was too large for the assisted reader.",
+      429: "The assisted reader is rate limited right now. Try again shortly, or type this one in.",
+      529: "Anthropic is overloaded right now. Try again shortly, or type this one in."
+    };
+
+    const message = byStatus[upstream.status] ||
+      "The assisted reader returned an error. Type this document in by hand.";
+
+    res.status(upstream.status === 429 ? 429 : 502).json({
+      error: message,
+      upstreamStatus: upstream.status,
+      category: category
+    });
+    return;
   }
 
   let payload;
