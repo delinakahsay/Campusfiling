@@ -5,11 +5,71 @@ Four suites now. Run all of them from the project root:
 ```
 node tests.js           20 checks, tax math
 node tests-extract.js   19 checks, document reading
+node tests-assisted.js  18 checks, reconciling the two readers
 node tests-ui.js        12 checks, walkthrough interactions against a stub DOM
-node tests-browser.js   39 checks, a real browser (npm install playwright)
+node tests-browser.js   43 checks, a real browser (npm install playwright)
 ```
 
 None of this constitutes a complete tax-accuracy audit.
+
+## October: a second reader, and a rule for believing it
+
+The local reader cannot handle every document, and after the classifier
+fixes the remaining failures were all layout: a W-2 whose text layer runs
+right to left, a scan whose character recognition produced "1 Wege&, tips,
+othff comp.", a photo from a phone with no text in it at all. Those were
+being handed back as "type this one in".
+
+A model reads those well. It is now available on each document, behind a
+button, as a second opinion rather than a replacement.
+
+### What is sent, and when
+
+Nothing is sent automatically. Every document sits in the list with its
+local result until someone presses its own button, and the button names
+what it would transmit. The file is never uploaded. What goes is either
+the text pdf.js already extracted, or a page image rendered locally when
+there is no text to extract.
+
+The request goes to `/api/read-document` on this domain, which holds the
+key and calls Anthropic server side. That is not decoration: the content
+security policy allows the browser to connect only to this domain, and a
+key in client code is a key anyone can spend. The policy did not have to
+be loosened.
+
+Anthropic does not train on API inputs or outputs and does not retain the
+content. Campus Filing stores none of it either, so when the tab closes
+there is no copy anywhere. `privacy.html` was rewritten in the same commit
+rather than after it, because it previously said nothing was transmitted
+and that stopped being true.
+
+### Both readers run, and disagreements are shown rather than resolved
+
+The two fail in opposite ways, and that is the whole design:
+
+| | How it fails |
+|---|---|
+| Local reader | Loudly. No caption match, no figure, nothing proposed. |
+| Model | Quietly. A plausible figure in the right box with nothing marking it wrong. |
+
+Trusting the model alone would mean trusting a reader whose mistakes are
+invisible, on a document that becomes a tax return. So `reconcile()` in
+`assets/js/assisted.js` compares them:
+
+- **Both agree.** Strongest signal available. Pre-ticked, marked agreed.
+- **Local found nothing.** The model's figure stands, labelled as coming
+  from the model alone. This is the case the feature exists for.
+- **The model declined.** The local figure stands.
+- **They disagree.** Both figures are shown, neither is applied, and the
+  student is asked to settle it against the paper.
+
+That last row is the point. Two independent readers disagreeing about your
+wages is the single most useful thing this tool can say, and resolving it
+silently in either direction would throw that away. A low confidence
+figure with nothing corroborating it also stays unticked.
+
+Everything still passes through the same review table. Neither reader can
+write a number into an answer.
 
 ## October: the reader was classifying documents by their fine print
 

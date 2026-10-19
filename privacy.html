@@ -41,7 +41,7 @@
   <div class="wrap">
     <p class="eyebrow">Privacy and security</p>
     <h1>We ask about your situation, never your identity</h1>
-    <p>Tax software has to know who you are. This tool does not, so it does not ask.</p>
+    <p>Tax software has to know who you are. This tool does not, so it does not ask. Your documents are read on your device, one can be sent to an AI reader when you ask for it, and nothing is stored at either end.</p>
   </div>
 </div>
 
@@ -66,20 +66,39 @@
     <p>Instead, the walkthrough can write your answers to a file you keep yourself, and read one back when you return. The file goes to your downloads folder, you control it, and you can delete it. Your uploaded documents are deliberately left out of it, because a saved file would otherwise contain the contents of your W-2.</p>
 
     <h2>What happens to your documents</h2>
-    <p>In this build, reading happens inside your browser. A PDF is opened locally by a reader served from this site, its text layer is searched for labelled amounts, and the file itself is never transmitted anywhere. Close the tab and both the file and anything read from it are gone.</p>
+    <p>Every document is read on your device first. A PDF is opened by a reader served from this site, its text layer is searched for labelled amounts, and that step involves no network at all. Your file is never uploaded, by either reader, at any point.</p>
     <p>No amount is ever written into your answers on its own. Everything found is shown in a review table first, against the form it came from, for you to check and correct. Forms are laid out differently by every issuer, so a misread is expected rather than exceptional, and the review step exists so a wrong number is always visible before it counts.</p>
-    <p>Photographs and scans hold a picture of the form rather than readable text. There is no character recognition here, so those files are listed with your records and you type the figures yourself.</p>
+
+    <h3>The AI reader, and exactly what it sends</h3>
+    <p>Some documents defeat the local reader. A scan carries a picture of the form rather than text. A phone photo carries no text at all. One real W-2 emits its text backwards, which is enough to break a reader that works on position. For those, each document in your list gets its own button, and pressing it sends that one document to be read by a model through Anthropic's API.</p>
+    <p>What is sent is one of two things, and the button tells you which before you press it:</p>
+    <ul>
+      <li><strong>The text this site already extracted</strong> from the PDF, when there is text to extract. Not the file.</li>
+      <li><strong>A picture of the page</strong>, rendered on your device, when the document holds no readable text. Again, not the file.</li>
+    </ul>
+    <p>Nothing is sent automatically. There is no background upload, no batch at the end, and no setting that turns this on for everything. A document you never press the button on never leaves your device, and the walkthrough works start to finish without pressing it once.</p>
+
+    <h3>Where that data goes, and how long it lasts</h3>
+    <p>The request goes to a function on this domain, which holds the API key and forwards the content to Anthropic. The key is there because a key shipped to a browser is a key anyone can spend.</p>
+    <p>Anthropic does not train its models on inputs or outputs from its commercial products, which includes the API, and does not retain the content of these requests. That is their published commercial policy rather than a promise this project is in a position to make on their behalf, and it is linked below so you can read it rather than take our word for it.</p>
+    <p>Campus Filing stores none of it either. The function writes nothing to disk, logs no document content, and keeps nothing after it answers. There is no database behind it, so there is no copy here to leak, subpoena or lose. When you close the tab, the only copy of your document that ever existed outside your own computer is already gone.</p>
+    <p>That is the honest shape of it. This is not a claim that nothing is transmitted, because something is, when you ask for it. It is a claim that nothing is kept, by anyone, and that you decide each time.</p>
+
+    <h3>Why two readers instead of one</h3>
+    <p>Both readers run, and their answers are compared rather than merged. Where they agree, the figure is marked as agreed and is the most trustworthy thing in the table. Where only the AI reader found something, it is labelled as coming from the AI reader alone. Where they disagree, both figures are shown, neither is applied, and you are asked to settle it against the paper.</p>
+    <p>That last case is the reason for the design. The two readers fail differently. The local one fails loudly, finding nothing and saying so. A model fails quietly, returning a plausible number that sits in the right box and looks correct. Running only the model would mean trusting a reader whose mistakes are invisible, on a document that becomes a tax return. Running both means a disagreement is visible before it costs you anything.</p>
 
     <h2>What changes when accounts arrive</h2>
     <p>A later version will store documents and profiles so a return can be picked up next January. That version will hold real financial documents belonging to real students, which is a different responsibility from this one, and this page will describe exactly what is retained, where it lives, how it is encrypted, and how to delete it, before the feature ships rather than after.</p>
 
-    <h2>No third party is involved at all</h2>
-    <p>This site loads nothing from anywhere else. The fonts are served from here rather than from Google. The PDF reader is served from here rather than from a CDN. There is no analytics script, no tag manager, no embedded widget, and no advertising pixel anywhere on the site.</p>
+    <h2>Nothing else is loaded from anywhere</h2>
+    <p>Apart from the AI reader you choose to invoke, this site loads nothing from any other party. The fonts are served from here rather than from Google. The PDF reader is served from here rather than from a CDN. There is no analytics script, no tag manager, no embedded widget, and no advertising pixel anywhere on the site.</p>
     <p>That matters because a third-party request does not have to carry your answers to tell someone something. A font request alone tells that company your network address, the page you are on, and the time you were on it. For a tax tool used by students, that is a strange thing to hand over.</p>
-    <p>A <span class="formref">Content-Security-Policy</span> header enforces it rather than relying on us to remember. The policy permits connections only to this site, forbids inline script, blocks the page from submitting a form anywhere, and blocks it from being framed by another site. If someone later added a tracking script to this project, the browser would refuse to run it.</p>
+    <p>A <span class="formref">Content-Security-Policy</span> header enforces it rather than relying on us to remember. The policy permits the page to connect only to this domain, which is why the AI reader goes through a function here rather than calling Anthropic from your browser. It also forbids inline script, blocks the page from submitting a form anywhere, and blocks it from being framed by another site. If someone later added a tracking script to this project, the browser would refuse to run it.</p>
 
     <h2>How to verify this yourself</h2>
-    <p>Open your browser's developer tools, switch to the Network tab, and run the entire walkthrough including a document upload. Every request will be to this domain. Nothing goes anywhere else, and no request carries your answers.</p>
+    <p>Open your browser's developer tools, switch to the Network tab, and run the entire walkthrough including a document upload. Every request will be to this domain, and if you never press an AI reader button, no request will carry your document at all.</p>
+    <p>Press one and you will see exactly one request, to <span class="formref">/api/read-document</span> on this domain, carrying that one document's text or page image and nothing else. No answers, no other documents, no identifier for you.</p>
     <p>You do not have to take that on trust between releases either. The project's browser test suite loads every page, reads a PDF, and fails the build if any request leaves this domain.</p>
   </div>
 
@@ -87,11 +106,16 @@
     <div class="note note-good">
       <p><strong>Why this matters more than usual</strong></p>
       <p>A tax tool is an attractive target precisely because of what people type into one. The safest way to protect information is not to hold it.</p>
+      <p>That principle survives the AI reader. One document goes out when you ask, nothing is kept at either end, and there is still no store here to breach.</p>
     </div>
 
     <h3 style="margin-top:1.8rem">Planned account features</h3>
     <p style="font-size:15px;color:var(--slate)">A future version will let you save a profile and keep each year's documents in one place. When that is built, this page will state exactly what is stored, where, and for how long, before the feature ships rather than after.</p>
     <p style="font-size:15px;color:var(--slate)">The demonstration version of that feature will use generated sample profiles, not real student data.</p>
+
+    <h3 style="margin-top:1.8rem">Read it from the source</h3>
+    <p style="font-size:15px;color:var(--slate)">Do not take this page's word for what Anthropic does with the request. Their published position on training and on commercial data is here:</p>
+    <p style="font-size:15px;color:var(--slate)"><a href="https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training" rel="noreferrer">Is my data used for model training?</a><br /><a href="https://www.anthropic.com/legal/commercial-terms" rel="noreferrer">Anthropic commercial terms</a></p>
 
     <h3 style="margin-top:1.8rem">Reporting a problem</h3>
     <p style="font-size:15px;color:var(--slate)">If you find something on this site that handles information in a way this page does not describe, tell the project team. That is a bug, not an edge case.</p>

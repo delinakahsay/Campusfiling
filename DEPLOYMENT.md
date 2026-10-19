@@ -36,6 +36,12 @@ Two consequences worth knowing before you change anything:
   changing the privacy promise, so change `privacy.html` in the same
   commit or do not do it.
 
+- **The AI reader works within this, not around it.** `connect-src 'self'`
+  means the browser may only talk to this domain, which is exactly why the
+  assisted reader posts to `/api/read-document` here and that function
+  calls Anthropic server side. The policy did not have to be loosened to
+  add it, and it should not be.
+
 `node tests-browser.js` fails if any page requests anything offsite.
 
 ### Cache headers
@@ -79,6 +85,31 @@ table, that key becomes a way for anyone to read it.
 
 Never put the service role key in these variables or anywhere in this
 repository. It bypasses RLS entirely.
+
+### The Anthropic API key
+
+The assisted document reader at `api/read-document.js` needs one variable,
+and it is a real secret rather than readable config:
+
+```
+ANTHROPIC_API_KEY      sk-ant-...        (Production, mark as Secret)
+ANTHROPIC_MODEL        claude-sonnet-5-5 (optional, defaults to this)
+```
+
+Add it under Settings, Environment Variables on the `campusfiling` project.
+It must never appear in client code, in this repository, or in a committed
+`.env`. The whole reason the reader goes through a serverless function
+instead of calling Anthropic from the browser is that a key shipped to a
+browser is a key anyone can spend.
+
+Without it the site still works. Local reading is unaffected, and the
+assisted reader returns a clear message saying it is not configured on
+this deployment.
+
+Cost is per document and only when someone presses the button, so a demo
+of a dozen documents is negligible. If this is ever opened to a campus,
+put a rate limit in front of the function first. An unauthenticated
+endpoint that spends money is the obvious thing to abuse.
 
 Note that this site has no build step, so a static page cannot read
 `process.env`. These variables are groundwork for the login phase; when

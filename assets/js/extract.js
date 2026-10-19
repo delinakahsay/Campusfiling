@@ -604,9 +604,12 @@ function readLines(lines, filename) {
 /* ---------- public entry point ---------- */
 
 async function readDocument(file) {
+  /* text, isImage and scanned are what the assisted reader needs to decide
+     what it would send, if the user asks for it. Nothing is sent from here. */
   const result = {
     name: file.name, size: file.size, type: null,
-    found: [], note: null, needsManual: false
+    found: [], note: null, needsManual: false,
+    text: "", isImage: false, scanned: false
   };
 
   if (file.size > MAX_FILE_BYTES) {
@@ -626,7 +629,8 @@ async function readDocument(file) {
   if (!isPdf) {
     result.type = classifyDocument("", file.name).type;
     result.needsManual = true;
-    result.note = "This is an image, and there is no text to read inside it. The file is saved with your records, but you will need to type the figures from it yourself.";
+    result.isImage = true;
+    result.note = "This is a photo, and there is no text inside it for the local reader to find. The assisted reader can look at it if you ask, otherwise type the figures in yourself.";
     return result;
   }
 
@@ -645,10 +649,14 @@ async function readDocument(file) {
   }
 
   const flat = lines.map(function (l) { return l.text; }).join(" ");
+  result.text = flat;
+
   if (flat.replace(/\s/g, "").length < 40) {
     result.type = classifyDocument("", file.name).type;
     result.needsManual = true;
-    result.note = "This PDF is a scan rather than a digital document, so it holds a picture of the form instead of readable text. Type the figures from it yourself.";
+    result.scanned = true;
+    result.text = "";
+    result.note = "This PDF is a scan rather than a digital document, so it holds a picture of the form instead of readable text. The assisted reader can look at the page image if you ask, otherwise type the figures in yourself.";
     return result;
   }
 

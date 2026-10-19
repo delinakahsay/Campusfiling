@@ -111,7 +111,9 @@ async function main() {
      nothing goes anywhere. That claim is only worth making if it is
      tested, so every request the pages make is recorded here. */
   const offsite = [];
+  const requests = [];
   page.on("request", function (r) {
+    requests.push(r.url());
     if (r.url().indexOf(base) !== 0 && !/^(data|blob):/.test(r.url())) offsite.push(r.url());
   });
 
@@ -146,6 +148,29 @@ async function main() {
     reviewShown: !document.getElementById("review").hidden
   }));
   check("Extraction alone writes nothing into the answers", gate.wage === "", "field held " + gate.wage);
+
+  /* The assisted reader is opt in, per document, and sends nothing by
+     itself. The invariant worth protecting is that reading a document
+     locally never calls the API, however the UI around it changes. */
+  const assist = await page.evaluate(async (pdfText) => {
+    const file = new File([new Blob([pdfText], { type: "application/pdf" })], "optin.pdf", { type: "application/pdf" });
+    const res = await readDocument(file);
+    return {
+      wiredUp: typeof assistedRead === "function" && typeof reconcile === "function",
+      kind: assistPayloadKind(res),
+      says: assistDescription(res),
+      sendsFile: false
+    };
+  }, w2Pdf());
+
+  check("The assisted reader is present", assist.wiredUp);
+  check("A text PDF would send its text, not the file", assist.kind === "text", "kind was " + assist.kind);
+  check("The consent wording says what would be sent",
+    /text already pulled out/i.test(assist.says || ""), "wording was " + assist.says);
+
+  const apiCalls = requests.filter(function (u) { return /\/api\/read-document/.test(u); });
+  check("Reading a document never calls the API on its own",
+    apiCalls.length === 0, apiCalls.join(" | "));
 
   /* The erase control is present and reachable. */
   check("The walkthrough carries an erase control",

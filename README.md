@@ -44,13 +44,17 @@ campus-filing/
     js/nav.js           Mobile menu
     js/glossary.js      Glossary filter
     js/estimator.js     Estimator logic
-    js/extract.js       Reading figures out of PDFs
+    js/extract.js       Reading figures out of PDFs, locally, no network
+    js/assisted.js      The opt-in AI reader and the rule for believing it
     js/wizard.js        Walkthrough logic
     fonts/              Public Sans and Newsreader, latin subsets
     vendor/pdfjs/       pdf.js 3.11.174, Apache 2.0
+  api/
+    read-document.js    Serverless function, holds the API key, calls Anthropic
   vercel.json           Security headers and the content security policy
   tests.js              Tax calculation
   tests-extract.js      Document reading, no browser needed
+  tests-assisted.js     Reconciling the two readers
   tests-ui.js           Walkthrough interactions against a stub DOM
   tests-browser.js      Real browser, real pdf.js, contrast, offsite requests
 ```
@@ -60,8 +64,9 @@ campus-filing/
 ```
 node tests.js           20 checks, tax math
 node tests-extract.js   19 checks, document reading
+node tests-assisted.js  18 checks, reconciling the two readers
 node tests-ui.js        12 checks, walkthrough interactions
-node tests-browser.js   39 checks, needs: npm install playwright
+node tests-browser.js   43 checks, needs: npm install playwright
 ```
 
 `tests-browser.js` is the one that matters most, and it exists because the

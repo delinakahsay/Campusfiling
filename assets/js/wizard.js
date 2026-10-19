@@ -587,13 +587,15 @@ function handleFiles(list) {
     }
 
     const rec = { id: ++fileSeq, name: f.name, size: f.size, type: null,
-      status: "reading", note: null, applied: {} };
+      status: "reading", note: null, applied: {},
+      file: f, local: null, assist: "idle", assistNote: null };
     A.files.push(rec);
     renderFiles();
 
     readDocument(f).then(function (res) {
       rec.type = res.type;
       rec.note = res.note;
+      rec.local = res;
       rec.status = res.found.length ? "found"
         : (res.type === "Consolidated 1099" ? "consolidated"
           : (RECORDS_ONLY.indexOf(res.type) > -1 ? "reference"
@@ -687,6 +689,7 @@ function renderFiles() {
 
     li.appendChild(grow);
     li.appendChild(tag);
+    li.appendChild(assistControl(f));
     li.appendChild(btn);
 
     if (f.note) {
@@ -697,7 +700,108 @@ function renderFiles() {
       li.appendChild(n);
     }
 
+    if (f.assistNote) {
+      const a = document.createElement("div");
+      a.className = "fmeta";
+      a.style.flexBasis = "100%";
+      a.style.color = "var(--navy)";
+      a.textContent = f.assistNote;
+      li.appendChild(a);
+    }
+
     ul.appendChild(li);
+  });
+}
+
+/* ---------- the assisted reader ----------
+
+   Nothing is sent anywhere until this button is pressed, and the button
+   says what it would send. A document that the local reader handled
+   cleanly can still be checked this way, because two readers agreeing is
+   worth more than one reader succeeding. */
+
+function assistControl(f) {
+  const wrap = document.createElement("span");
+  if (!f.local) return wrap;
+
+  const kind = assistPayloadKind(f.local);
+  if (!kind) return wrap;
+
+  if (f.assist === "running") {
+    const busy = document.createElement("span");
+    busy.className = "tag tag-muted";
+    busy.setAttribute("role", "status");
+    busy.textContent = "Reading with AI";
+    wrap.appendChild(busy);
+    return wrap;
+  }
+
+  if (f.assist === "done") {
+    const done = document.createElement("span");
+    done.className = "tag";
+    done.textContent = "Checked by AI";
+    wrap.appendChild(done);
+    return wrap;
+  }
+
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "btn btn-ghost btn-sm";
+  b.textContent = f.local.needsManual ? "Try the AI reader" : "Double check with AI";
+  b.title = "Sends " + assistDescription(f.local) + " to be read. The file itself is not uploaded.";
+  b.setAttribute("aria-label", b.textContent + " for " + f.name);
+  b.addEventListener("click", function () { runAssist(f.id); });
+  wrap.appendChild(b);
+  return wrap;
+}
+
+function runAssist(id) {
+  const rec = A.files.filter(function (f) { return f.id === id; })[0];
+  if (!rec || !rec.local || rec.assist === "running") return;
+
+  rec.assist = "running";
+  rec.assistNote = null;
+  renderFiles();
+
+  assistedRead(rec.file, rec.local).then(function (res) {
+    rec.assist = "done";
+
+    /* The assisted reader can also correct the classification. */
+    if (res.type && res.type !== rec.type) {
+      rec.assistNote = "The AI reader identified this as a " + res.type +
+        (rec.type ? ", where the local reader said " + rec.type : "") + ".";
+      rec.type = res.type;
+      autoCheckHaveDoc(res.type);
+    }
+    if (res.note) {
+      rec.assistNote = (rec.assistNote ? rec.assistNote + " " : "") + res.note;
+    }
+
+    const rows = reconcile(rec.local, res);
+
+    /* Replace anything still pending from this file so a second run does
+       not stack duplicate rows. */
+    pending = pending.filter(function (x) { return x.fileId !== id; });
+    rows.forEach(function (r) {
+      pending.push({ fileId: rec.id, fileName: rec.name, formType: rec.type || "Document",
+        field: r.field, label: r.label, value: r.value, confidence: r.confidence,
+        source: r.source, other: r.other, evidence: r.evidence, ticked: r.ticked });
+    });
+
+    if (rows.length) rec.status = "found";
+    else if (!rec.local.found.length) {
+      rec.status = "manual";
+      rec.assistNote = (rec.assistNote ? rec.assistNote + " " : "") +
+        "The AI reader could not read a figure from this either. Type it in by hand.";
+    }
+
+    renderFiles();
+    renderReview();
+    refreshSummary();
+  }).catch(function (e) {
+    rec.assist = "idle";
+    rec.assistNote = (e && e.message) || "The assisted reader failed. Type this one in by hand.";
+    renderFiles();
   });
 }
 
@@ -718,7 +822,20 @@ function renderReview() {
     low: ["Check carefully", "tag-muted", "Not printed as money, so this may not be the right figure."]
   };
 
-  const lowCount = pending.filter(function (x) { return x.confidence === "low"; }).length;
+  /* Where a figure came from matters more than how it was formatted once
+     two readers are involved. A source, when there is one, replaces the
+     confidence wording above. */
+  const SOURCE = {
+    agreed: ["Both readers agree", "", "The local reader and the AI reader read the same figure independently."],
+    assisted: ["Read by AI", "tag-muted", "The local reader could not read this one. This figure comes from the AI reader alone."],
+    local: ["Read on your device", "tag-muted", "Read locally. The AI reader did not report a figure for this box."],
+    conflict: ["The two readers disagree", "tag-muted", "Neither figure is applied. Open the form and settle it yourself."]
+  };
+
+  const lowCount = pending.filter(function (x) {
+    return x.source !== "conflict" && x.confidence === "low";
+  }).length;
+  const conflictCount = pending.filter(function (x) { return x.source === "conflict"; }).length;
 
   /* Two documents can feed one box: two banks, two employers, two schools.
      Where that is about to happen, say so on the row, because a figure
@@ -728,7 +845,7 @@ function renderReview() {
   const runningTotal = {};
 
   const rows = pending.map(function (x, i) {
-    const c = CONF[x.confidence] || CONF.medium;
+    const c = (x.source && SOURCE[x.source]) || CONF[x.confidence] || CONF.medium;
     const el = $(x.field);
     const already = (runningTotal[x.field] !== undefined)
       ? runningTotal[x.field]
@@ -740,14 +857,27 @@ function renderReview() {
         money(already) + ' already in this box, giving ' + money(already + x.value) + '.</div>'
       : "";
 
-    /* A low confidence figure is not ticked for you. Applying it has to be
-       a deliberate act, because the reader is saying it may be wrong. */
-    const ticked = x.confidence === "low" ? "" : " checked";
+    /* A figure nothing is sure of is not ticked for you. Applying it has
+       to be a deliberate act, because a reader is saying it may be wrong.
+       Where the two readers disagree, neither figure is ticked and both
+       are shown, because that is a question for whoever is holding the
+       paper and not one this tool should quietly decide. */
+    const ticked = (x.ticked === false || (x.ticked === undefined && x.confidence === "low")) ? "" : " checked";
+
+    const disagreement = x.source === "conflict"
+      ? '<div style="color:var(--rust);font-size:12px;margin-top:4px">Local reader read ' +
+        money(x.value) + '. AI reader read ' + money(x.other) + '.</div>'
+      : "";
+
+    const evidence = x.evidence
+      ? '<div style="color:var(--muted);font-size:12px;margin-top:4px">Read from: <span class="formref">' +
+        String(x.evidence).replace(/[<>&]/g, " ").slice(0, 120) + '</span></div>'
+      : "";
 
     return '<tr>' +
       '<td><label style="font-weight:400;display:flex;gap:9px;align-items:flex-start">' +
       '<input type="checkbox" data-review="' + i + '"' + ticked + ' />' +
-      '<span>' + x.label + '<br /><span style="color:var(--muted);font-size:13px">' + x.formType + ' \u00b7 ' + x.fileName + '</span>' + adds + '</span></label></td>' +
+      '<span>' + x.label + '<br /><span style="color:var(--muted);font-size:13px">' + x.formType + ' \u00b7 ' + x.fileName + '</span>' + disagreement + evidence + adds + '</span></label></td>' +
       '<td><span class="tag ' + c[1] + '">' + c[0] + '</span>' +
       '<div style="color:var(--muted);font-size:12px;margin-top:4px;max-width:30ch">' + c[2] + '</div></td>' +
       '<td class="num"><input type="number" step="0.01" data-reviewval="' + i + '" value="' + x.value + '" style="max-width:130px;text-align:right" aria-label="' + x.label + ' amount" /></td>' +
@@ -758,6 +888,7 @@ function renderReview() {
   box.innerHTML =
     '<h3 style="margin-top:26px">Check these against your forms</h3>' +
     '<div class="note note-warn"><p>These amounts were read out of your documents. Issuers lay these forms out very differently, so a misread is possible. Compare each figure to the paper before you apply it, correct anything wrong, and untick anything that does not belong.</p>' +
+    (conflictCount ? '<p><strong>The two readers disagree on ' + conflictCount + (conflictCount === 1 ? ' figure.' : ' figures.') + '</strong> Both are shown and neither is applied. Open the form and settle ' + (conflictCount === 1 ? 'it' : 'them') + ' yourself, because a disagreement means one of them is definitely wrong.</p>' : "") +
     (lowCount ? '<p><strong>' + lowCount + (lowCount === 1 ? ' figure was' : ' figures were') + ' read with low confidence and left unticked.</strong> Check ' + (lowCount === 1 ? 'it' : 'those') + ' against the paper and tick ' + (lowCount === 1 ? 'it' : 'them') + ' only if the figure is right.</p>' : "") +
     '</div>' +
     '<div class="table-wrap"><table class="data"><thead><tr><th>What was found</th><th>How it was read</th><th class="num">Amount</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
