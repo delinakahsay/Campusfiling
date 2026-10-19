@@ -96,6 +96,16 @@ ANTHROPIC_API_KEY      sk-ant-...        (Production, mark as Secret)
 ANTHROPIC_MODEL        claude-sonnet-5-5 (optional, defaults to this)
 ```
 
+`ANTHROPIC_KEY` is accepted as an alternative name for the key, because
+getting it slightly wrong costs a deploy and produces a 503 that reads
+like a bug rather than a typo. Prefer `ANTHROPIC_API_KEY`, which is what
+Anthropic's own tooling uses.
+
+**A new variable does not reach a running deployment.** Vercel injects
+environment variables at build time, so after adding or renaming one you
+must redeploy before the function can see it. Deployments, then the menu
+on the latest one, then Redeploy.
+
 Add it under Settings, Environment Variables on the `campusfiling` project.
 It must never appear in client code, in this repository, or in a committed
 `.env`. The whole reason the reader goes through a serverless function

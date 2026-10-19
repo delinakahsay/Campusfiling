@@ -20,6 +20,14 @@ const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
 
+/* Either name works. ANTHROPIC_API_KEY is what Anthropic's own tooling
+   uses and is the one to prefer, but ANTHROPIC_KEY is a natural thing to
+   type and getting it wrong costs a deploy and a confusing 503. Accepting
+   both is cheaper than the support question. */
+function apiKey() {
+  return process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_KEY || "";
+}
+
 const MAX_TEXT_CHARS = 60000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_OUTPUT_TOKENS = 1500;
@@ -128,8 +136,9 @@ function bad(res, status, message) {
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return bad(res, 405, "POST only.");
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return bad(res, 503, "The assisted reader is not configured on this deployment. ANTHROPIC_API_KEY is not set.");
+  const key = apiKey();
+  if (!key) {
+    return bad(res, 503, "The assisted reader is not configured on this deployment. Set ANTHROPIC_API_KEY (or ANTHROPIC_KEY) and redeploy.");
   }
 
   let body = req.body;
@@ -180,7 +189,7 @@ module.exports = async function handler(req, res) {
       signal: controller.signal,
       headers: {
         "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "x-api-key": key,
         "anthropic-version": API_VERSION
       },
       body: JSON.stringify({
