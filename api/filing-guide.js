@@ -18,7 +18,7 @@
 
 const { callAnthropic } = require("./_anthropic.js");
 
-const MAX_OUTPUT_TOKENS = 6000;
+const MAX_OUTPUT_TOKENS = 8000;
 
 const SOFTWARE = {
   freetaxusa: "FreeTaxUSA",
@@ -48,7 +48,7 @@ const TOOL = {
       },
       sections: {
         type: "array",
-        description: "The guide itself, in the order the software presents it. One entry per screen or logical group of screens. Six to fourteen entries is typical.",
+        description: "The guide itself, in the order the software presents it. One entry per screen or logical group of screens. Eight to twelve entries. Be complete but do not pad; a guide that runs past the limit is cut off and useless.",
         items: {
           type: "object",
           properties: {
@@ -245,6 +245,14 @@ module.exports = async function handler(req, res) {
 
   const g = out.result;
   const sections = Array.isArray(g.sections) ? g.sections : [];
+
+  /* A guide with no steps is not a guide. Rendering one would put an
+     empty page in front of a student who asked for instructions, which
+     is worse than telling them it failed. */
+  if (!sections.length) {
+    res.status(502).json({ error: "The guide came back empty. Try again." });
+    return;
+  }
 
   res.setHeader("Cache-Control", "no-store");
   res.status(200).json({

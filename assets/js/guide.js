@@ -14,7 +14,7 @@
    figures, read off their own documents. */
 
 const GUIDE_ENDPOINT = "/api/filing-guide.js".replace(/\.js$/, "");
-const GUIDE_TIMEOUT_MS = 70000;
+const GUIDE_TIMEOUT_MS = 110000;
 
 /* Everything the guide writer needs, and nothing it does not. There is no
    name, no Social Security number, no employer and no address in here,
@@ -102,6 +102,9 @@ async function fetchGuide(softwareKey) {
   try { payload = await res.json(); } catch (e) { payload = null; }
   if (!res.ok) throw new Error((payload && payload.error) || "The guide could not be written. Try again.");
   if (!payload) throw new Error("The guide service returned something unreadable.");
+  if (!payload.sections || !payload.sections.length) {
+    throw new Error("The guide came back without any steps. Try again.");
+  }
   return payload;
 }
 
@@ -193,7 +196,7 @@ function offerGuide(softwareKey, softwareName) {
     btn.disabled = true;
     btn.textContent = "Writing your guide";
     const status = $("guide-status");
-    if (status) status.textContent = "This takes a few seconds. It is being written for your figures, not picked off a shelf.";
+    if (status) status.textContent = "This takes up to a minute. It is being written for your figures, not picked off a shelf.";
 
     fetchGuide(softwareKey).then(function (g) {
       renderGuide(g);

@@ -14,7 +14,7 @@
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 const DEFAULT_MODEL = "claude-sonnet-5-5";
-const TIMEOUT_MS = 55000;
+const TIMEOUT_MS = 90000;
 
 function model() {
   return process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
@@ -151,12 +151,26 @@ async function callAnthropic(options) {
   try { payload = await upstream.json(); }
   catch (e) { return { ok: false, status: 502, body: { error: "Anthropic returned something unreadable." } }; }
 
+  /* A truncated answer is the dangerous case. The tool block still
+     arrives and still parses, it is simply missing most of what was
+     asked for, and the caller has no way to tell that from a short
+     answer. One run of the guide came back with a headline and zero
+     steps, and the page rendered an empty guide rather than an error.
+     So truncation is reported as a failure here. */
+  if (payload && payload.stop_reason === "max_tokens") {
+    console.error("anthropic truncated at max_tokens (model " + model() + ")");
+    return { ok: false, status: 502, body: {
+      error: "The answer was cut off before it finished. Try again.",
+      truncated: true
+    } };
+  }
+
   const result = resultFrom(payload, options.tool.name);
   if (!result) {
     return { ok: false, status: 502, body: { error: "Anthropic did not return a result in the expected shape." } };
   }
 
-  return { ok: true, result: result };
+  return { ok: true, result: result, stopReason: payload && payload.stop_reason };
 }
 
 module.exports = { callAnthropic, resultFrom, messageFor, apiKey, workspaceId, model };

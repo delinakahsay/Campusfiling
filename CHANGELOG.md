@@ -7,7 +7,7 @@ node tests.js           20 checks, tax math
 node tests-extract.js   19 checks, document reading
 node tests-assisted.js  21 checks, reconciling the two readers
 node tests-ui.js        13 checks, walkthrough interactions against a stub DOM
-node tests-flow.js      22 checks, upload to applied to guided, API stubbed
+node tests-flow.js      24 checks, upload to applied to guided, API stubbed
 node tests-browser.js   43 checks, a real browser (npm install playwright)
 ```
 

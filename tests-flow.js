@@ -274,6 +274,34 @@ async function main() {
   check("The guide says what can be skipped", handoff.showsSkipped === true);
   check("The guide carries the check-your-own-forms disclaimer", handoff.hasDisclaimer === true);
 
+  /* An empty guide must be refused, not rendered. One live run came back
+     with a headline and no steps because the answer was cut off at the
+     token limit, and the page showed an empty guide. A student who asked
+     for instructions and got a blank panel is worse off than one told it
+     failed. */
+  await page.route("**/api/filing-guide", function (route) {
+    route.fulfill({ status: 200, contentType: "application/json",
+      body: JSON.stringify({ software: "FreeTaxUSA", softwareKey: "freetaxusa",
+        headline: "You will file a federal return and a Virginia return.",
+        beforeYouStart: [], sections: [], afterFiling: [], skipped: [] }) });
+  });
+  const empty = await page.evaluate(async function () {
+    document.getElementById("guide").hidden = true;
+    document.getElementById("guide").innerHTML = "";
+    document.querySelectorAll("[data-software]")[0].click();
+    document.getElementById("build-guide").click();
+    for (let i = 0; i < 100 && document.getElementById("build-guide").disabled; i++) {
+      await new Promise(function (r) { setTimeout(r, 50); });
+    }
+    return {
+      guideHidden: document.getElementById("guide").hidden,
+      message: document.getElementById("guide-status").textContent
+    };
+  });
+  check("A guide with no steps is not rendered", empty.guideHidden === true);
+  check("A guide with no steps says so", /without any steps/i.test(empty.message),
+    "status was \"" + empty.message + "\"");
+
   /* A failure has to degrade into something a student can still act on. */
   await page.route("**/api/filing-guide", function (route) {
     route.fulfill({ status: 503, contentType: "application/json",
