@@ -119,6 +119,8 @@ const SYSTEM = [
   "7. A consolidated brokerage 1099 holds several forms at once. Report form_type as Consolidated 1099 and return no fields. These import directly into filing software and must not be retyped.",
   "8. A 1095-B or 1095-C has no figures that go on a return. Report the type and return no fields.",
   "",
+  "Always answer by calling the record_form tool. Do not reply in prose.",
+  "",
   "Confidence: high means the caption and the amount are unambiguous and clearly paired. medium means you are confident in the figure but the layout required inference. low means you are reporting it only because it is probably right. Use low freely; it is surfaced to the student as something to check, not hidden."
 ].join("\n");
 
@@ -140,6 +142,33 @@ function localSummary(localType, localFound) {
 
 function bad(res, status, message) {
   res.status(status).json({ error: message });
+}
+
+/* The structured answer arrives as a tool_use block when the model calls
+   the tool, which is the normal path. When it answers in prose instead,
+   the JSON object is usually still in the text, so that is tried before
+   giving up. Pinning this to one response shape would make the reader
+   break on a model change rather than on anything real. */
+function resultFrom(payload) {
+  const blocks = (payload && payload.content) || [];
+
+  const used = blocks.filter(function (b) {
+    return b.type === "tool_use" && b.name === "record_form" && b.input;
+  })[0];
+  if (used) return used.input;
+
+  const text = blocks.filter(function (b) { return b.type === "text"; })
+    .map(function (b) { return b.text || ""; }).join("\n");
+  if (!text) return null;
+
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
+  const candidate = fenced ? fenced[1] : text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
+  if (!candidate) return null;
+
+  try {
+    const parsed = JSON.parse(candidate);
+    return (parsed && typeof parsed === "object") ? parsed : null;
+  } catch (e) { return null; }
 }
 
 module.exports = async function handler(req, res) {
@@ -206,7 +235,12 @@ module.exports = async function handler(req, res) {
         max_tokens: MAX_OUTPUT_TOKENS,
         system: SYSTEM,
         tools: [TOOL],
-        tool_choice: { type: "tool", name: "record_form" },
+        /* Forced tool choice (type "tool" or "any") is not accepted by
+           every model, so the tool is offered rather than demanded and the
+           system prompt asks for it. The parser below accepts either a
+           tool_use block or a JSON object returned as text, which makes
+           this work across models rather than pinning it to one. */
+        tool_choice: { type: "auto" },
         messages: [{ role: "user", content: content }]
       })
     });
@@ -269,15 +303,10 @@ module.exports = async function handler(req, res) {
   try { payload = await upstream.json(); }
   catch (e) { return bad(res, 502, "The assisted reader returned something unreadable."); }
 
-  const block = (payload.content || []).filter(function (b) {
-    return b.type === "tool_use" && b.name === "record_form";
-  })[0];
-
-  if (!block || !block.input) {
+  const out = resultFrom(payload);
+  if (!out) {
     return bad(res, 502, "The assisted reader did not return a result in the expected shape.");
   }
-
-  const out = block.input;
   const fields = Array.isArray(out.fields) ? out.fields : [];
 
   /* Re-validate on the way out. The schema is a request, not a guarantee. */
