@@ -46,11 +46,14 @@ campus-filing/
     js/estimator.js     Estimator logic
     js/extract.js       Reading figures out of PDFs, locally, no network
     js/assisted.js      The opt-in AI reader and the rule for believing it
+    js/guide.js         The step-by-step filing guide, the point of the project
     js/wizard.js        Walkthrough logic
     fonts/              Public Sans and Newsreader, latin subsets
     vendor/pdfjs/       pdf.js 3.11.174, Apache 2.0
   api/
-    read-document.js    Serverless function, holds the API key, calls Anthropic
+    _anthropic.js       Key, workspace, call and error handling, in one place
+    read-document.js    Reads a document the local reader could not
+    filing-guide.js     Writes the screen-by-screen guide for the chosen product
   vercel.json           Security headers and the content security policy
   tests.js              Tax calculation
   tests-extract.js      Document reading, no browser needed
@@ -67,7 +70,7 @@ node tests.js           20 checks, tax math
 node tests-extract.js   19 checks, document reading
 node tests-assisted.js  21 checks, reconciling the two readers
 node tests-ui.js        13 checks, walkthrough interactions
-node tests-flow.js       8 checks, upload to applied, API stubbed
+node tests-flow.js      22 checks, upload to applied to guided, API stubbed
 node tests-browser.js   43 checks, needs: npm install playwright
 ```
 

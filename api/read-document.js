@@ -16,31 +16,11 @@
    figure is trustworthy. Where they disagree, the user is shown both and
    neither is applied. See reconcile() in wizard.js. */
 
-const API_URL = "https://api.anthropic.com/v1/messages";
-const API_VERSION = "2023-06-01";
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
-
-/* Either name works. ANTHROPIC_API_KEY is what Anthropic's own tooling
-   uses and is the one to prefer, but ANTHROPIC_KEY is a natural thing to
-   type and getting it wrong costs a deploy and a confusing 503. Accepting
-   both is cheaper than the support question. */
-function apiKey() {
-  return process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_KEY || "";
-}
-
-/* An API key created at the organization level is not tied to a workspace,
-   and Anthropic rejects those unless the request names one. A key created
-   inside a workspace carries it already and needs nothing here. Setting
-   this when it is not needed is harmless, so it is simply passed through
-   when present. */
-function workspaceId() {
-  return process.env.ANTHROPIC_WORKSPACE_ID || "";
-}
+const { callAnthropic } = require("./_anthropic.js");
 
 const MAX_TEXT_CHARS = 60000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_OUTPUT_TOKENS = 1500;
-const TIMEOUT_MS = 45000;
 
 /* The fields the walkthrough actually has boxes for. The model is not
    allowed to invent a field name, because a value with a name nothing
@@ -144,40 +124,8 @@ function bad(res, status, message) {
   res.status(status).json({ error: message });
 }
 
-/* The structured answer arrives as a tool_use block when the model calls
-   the tool, which is the normal path. When it answers in prose instead,
-   the JSON object is usually still in the text, so that is tried before
-   giving up. Pinning this to one response shape would make the reader
-   break on a model change rather than on anything real. */
-function resultFrom(payload) {
-  const blocks = (payload && payload.content) || [];
-
-  const used = blocks.filter(function (b) {
-    return b.type === "tool_use" && b.name === "record_form" && b.input;
-  })[0];
-  if (used) return used.input;
-
-  const text = blocks.filter(function (b) { return b.type === "text"; })
-    .map(function (b) { return b.text || ""; }).join("\n");
-  if (!text) return null;
-
-  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
-  const candidate = fenced ? fenced[1] : text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
-  if (!candidate) return null;
-
-  try {
-    const parsed = JSON.parse(candidate);
-    return (parsed && typeof parsed === "object") ? parsed : null;
-  } catch (e) { return null; }
-}
-
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return bad(res, 405, "POST only.");
-
-  const key = apiKey();
-  if (!key) {
-    return bad(res, 503, "The assisted reader is not configured on this deployment. Set ANTHROPIC_API_KEY (or ANTHROPIC_KEY) and redeploy.");
-  }
 
   let body = req.body;
   if (typeof body === "string") {
@@ -217,97 +165,20 @@ module.exports = async function handler(req, res) {
     ].join("\n")
   });
 
-  const controller = new AbortController();
-  const timer = setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
+  const out = await callAnthropic({
+    system: SYSTEM,
+    tool: TOOL,
+    maxTokens: MAX_OUTPUT_TOKENS,
+    messages: [{ role: "user", content: content }]
+  });
 
-  let upstream;
-  try {
-    upstream = await fetch(API_URL, {
-      method: "POST",
-      signal: controller.signal,
-      headers: Object.assign({
-        "content-type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": API_VERSION
-      }, workspaceId() ? { "anthropic-workspace-id": workspaceId() } : {}),
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        system: SYSTEM,
-        tools: [TOOL],
-        /* Forced tool choice (type "tool" or "any") is not accepted by
-           every model, so the tool is offered rather than demanded and the
-           system prompt asks for it. The parser below accepts either a
-           tool_use block or a JSON object returned as text, which makes
-           this work across models rather than pinning it to one. */
-        tool_choice: { type: "auto" },
-        messages: [{ role: "user", content: content }]
-      })
-    });
-  } catch (e) {
-    clearTimeout(timer);
-    const aborted = e && e.name === "AbortError";
-    return bad(res, 504, aborted
-      ? "The assisted reader took too long and was stopped. Type this document in by hand."
-      : "The assisted reader could not be reached. Type this document in by hand.");
-  }
-  clearTimeout(timer);
-
-  if (!upstream.ok) {
-    /* The upstream body can echo request content, so it is never forwarded
-       to the browser. The status and Anthropic's error category are a
-       different matter: they describe the key, the model or the shape of
-       the call, never the document, and without them a misconfigured
-       deployment is indistinguishable from a broken one. */
-    let category = "", detail = "";
-    try {
-      const err = await upstream.json();
-      category = (err && err.error && err.error.type) || "";
-      /* 400, 401, 403 and 404 describe the key, the model or the shape of
-         the call. Anthropic words these in terms of fields and limits, not
-         content, so the message is safe to surface and is the difference
-         between fixing a deployment in a minute and guessing at it. */
-      if ([400, 401, 403, 404].indexOf(upstream.status) > -1) {
-        detail = String((err && err.error && err.error.message) || "").slice(0, 300);
-      }
-    } catch (e) { /* nothing to add */ }
-
-    console.error("assisted reader upstream " + upstream.status + " " + category +
-      (detail ? ": " + detail : "") + " (model " + MODEL + ")");
-
-    const byStatus = {
-      400: /workspace/i.test(detail)
-        ? "The assisted reader's API key is not scoped to a workspace. Either set ANTHROPIC_WORKSPACE_ID on this deployment, or create the key inside a workspace in the Anthropic Console."
-        : "The assisted reader sent a request Anthropic rejected. This is a bug in the deployment, not in your document.",
-      401: "The assisted reader's API key is not valid. Check ANTHROPIC_API_KEY on this deployment.",
-      403: "The assisted reader's API key is not permitted to do this. Check the key's permissions and that the account is in good standing.",
-      404: "The assisted reader is configured for a model this key cannot reach: " + MODEL + ". Set ANTHROPIC_MODEL to a model the account has access to.",
-      413: "That document was too large for the assisted reader.",
-      429: "The assisted reader is rate limited right now. Try again shortly, or type this one in.",
-      529: "Anthropic is overloaded right now. Try again shortly, or type this one in."
-    };
-
-    const message = byStatus[upstream.status] ||
-      "The assisted reader returned an error. Type this document in by hand.";
-
-    res.status(upstream.status === 429 ? 429 : 502).json({
-      error: message,
-      upstreamStatus: upstream.status,
-      category: category,
-      detail: detail
-    });
+  if (!out.ok) {
+    res.status(out.status).json(out.body);
     return;
   }
 
-  let payload;
-  try { payload = await upstream.json(); }
-  catch (e) { return bad(res, 502, "The assisted reader returned something unreadable."); }
-
-  const out = resultFrom(payload);
-  if (!out) {
-    return bad(res, 502, "The assisted reader did not return a result in the expected shape.");
-  }
-  const fields = Array.isArray(out.fields) ? out.fields : [];
+  const result = out.result;
+  const fields = Array.isArray(result.fields) ? result.fields : [];
 
   /* Re-validate on the way out. The schema is a request, not a guarantee. */
   const clean = fields.filter(function (f) {
@@ -326,9 +197,9 @@ module.exports = async function handler(req, res) {
 
   res.setHeader("Cache-Control", "no-store");
   res.status(200).json({
-    type: FORM_TYPES.indexOf(out.form_type) > -1 ? out.form_type : null,
-    fields: out.unreadable ? [] : clean,
-    unreadable: !!out.unreadable,
-    note: typeof out.note === "string" ? out.note.slice(0, 400) : ""
+    type: FORM_TYPES.indexOf(result.form_type) > -1 ? result.form_type : null,
+    fields: result.unreadable ? [] : clean,
+    unreadable: !!result.unreadable,
+    note: typeof result.note === "string" ? result.note.slice(0, 400) : ""
   });
 };

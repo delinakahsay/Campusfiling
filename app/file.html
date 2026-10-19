@@ -539,20 +539,6 @@
         <div class="note" id="state-note" hidden></div>
       </fieldset>
 
-      <fieldset>
-        <legend>How do you plan to file?</legend>
-        <p class="help">Pick one and the walkthrough tailors its wording to that product. If you are undecided, choose the last option for a recommendation based on your answers.</p>
-        <div class="choices">
-          <label class="choice"><input type="radio" name="software" value="freefile" /><span class="choice-text">An IRS Free File partner<small>Free federal and often free state below the income threshold. Eight partners, each with its own extra restrictions</small></span></label>
-          <label class="choice"><input type="radio" name="software" value="fillable" /><span class="choice-text">IRS Free File Fillable Forms<small>No income limit and no guided interview. Electronic versions of the paper forms</small></span></label>
-          <label class="choice"><input type="radio" name="software" value="freetaxusa" /><span class="choice-text">FreeTaxUSA<small>Free federal including self-employment forms, modest per state charge</small></span></label>
-          <label class="choice"><input type="radio" name="software" value="turbotax" /><span class="choice-text">TurboTax<small>Widely used, but the free tier drops most students once a 1098-T or 1099 is added</small></span></label>
-          <label class="choice"><input type="radio" name="software" value="vita" /><span class="choice-text">A VITA site or campus tax clinic<small>Free in person help from certified volunteers</small></span></label>
-          <label class="choice"><input type="radio" name="software" value="undecided" /><span class="choice-text">Undecided, recommend one for me</span></label>
-        </div>
-        <div class="note note-warn" id="soft-note" hidden></div>
-      </fieldset>
-
       <div class="panel-actions"><button type="button" class="btn btn-ghost" data-back="7">Back</button><div class="spacer"></div><span class="error" role="alert" tabindex="-1" data-err="7"></span><button type="button" class="btn btn-green" data-next="7">Build my filing plan</button></div>
     </section>
 
@@ -560,9 +546,10 @@
       <div class="panel-head">
         <div class="step-of">Section 9 of 9</div>
         <h2>Your filing plan</h2>
-        <p>Work down this list in order. Everything below is generated from your answers, not from a template.</p>
+        <p>Work down this list in order. At the bottom you pick where to file, and then this becomes a screen by screen guide for that product with your own figures in it.</p>
       </div>
       <div id="plan"></div>
+      <div id="guide" hidden></div>
       <div id="worksheet" hidden></div>
       <div class="panel-actions">
         <button type="button" class="btn btn-ghost" data-back="8">Back</button>
@@ -593,6 +580,7 @@
 <script src="../assets/js/nav.js"></script>
 <script src="../assets/js/extract.js"></script>
 <script src="../assets/js/assisted.js"></script>
+<script src="../assets/js/guide.js"></script>
 <script src="../assets/js/wizard.js"></script>
 </body>
 </html>

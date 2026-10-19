@@ -184,6 +184,123 @@ async function main() {
   check("The review table does not tell the student the readers disagreed",
     !wording.saysDisagree && !wording.namesBothReaders, JSON.stringify(wording));
 
+  /* ---------- the hand-off: pick a product, get a guide ---------- */
+
+  let guideStub = {
+    software: "FreeTaxUSA", softwareKey: "freetaxusa",
+    headline: "About twenty minutes, federal then Virginia.",
+    beforeYouStart: ["Have your W-2 open", "Have last year's AGI to hand"],
+    sections: [
+      { screen: "Personal Information, under the Personal tab",
+        whatToDo: "Fill in your details and answer the dependent question.",
+        entries: [{ box: "Someone can claim you as a dependent", value: "Yes", from: "your answers about support and where you lived" }],
+        watchOut: "Missing this box is the most common student mistake." },
+      { screen: "Income, then Wages (W-2)",
+        whatToDo: "Add one W-2 for each employer you had.",
+        entries: [{ box: "Box 1, Wages, tips, other compensation", value: "500.00", from: "Box 1 of your W-2" }],
+        watchOut: "" }
+    ],
+    afterFiling: ["Save the PDF of the accepted return"],
+    skipped: ["Education credits, because they go on your parents' return"]
+  };
+  await page.route("**/api/filing-guide", function (route) {
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(guideStub) });
+  });
+
+  const handoff = await page.evaluate(async function () {
+    /* A situation complete enough for the plan to build. */
+    document.querySelector('input[name="status"][value="citizen"]').checked = true;
+    document.querySelector('input[name="ssn"][value="yes"]').checked = true;
+    document.getElementById("age").value = "21";
+    document.querySelector('input[name="marital"][value="single"]').checked = true;
+    document.querySelector('input[name="fulltime"][value="yes"]').checked = true;
+    document.querySelector('input[name="support"][value="no"]').checked = true;
+    document.querySelector('input[name="lived"][value="parents"]').checked = true;
+    document.querySelector('input[name="confirmed"][value="claiming"]').checked = true;
+    document.querySelector('input[name="aotc"][value="0"]').checked = true;
+    document.querySelector('input[name="halftime"][value="yes"]').checked = true;
+    document.querySelector('input[name="marketplace"][value="no"]').checked = true;
+    document.querySelector('input[name="retire"][value="no"]').checked = true;
+    document.querySelector('input[name="foreign"][value="no"]').checked = true;
+    document.getElementById("homestate").value = "VA";
+    document.getElementById("schoolstate").value = "DC";
+    document.getElementById("workedschool").value = "no";
+    document.getElementById("workedother").value = "no";
+    document.getElementById("w2wage").value = "500";
+
+    A.software = null;
+    buildPlan();
+
+    const opts = Array.from(document.querySelectorAll("[data-software]"));
+    const before = !!document.getElementById("build-guide");
+
+    opts[0].click();
+    const picked = A.software;
+    const launched = !!document.getElementById("build-guide");
+
+    document.getElementById("build-guide").click();
+    for (let i = 0; i < 100 && document.getElementById("guide").hidden; i++) {
+      await new Promise(function (r) { setTimeout(r, 50); });
+    }
+
+    const guideHtml = document.getElementById("guide").innerHTML;
+    return {
+      optionCount: opts.length,
+      buttonBeforePicking: before,
+      picked: picked,
+      buttonAfterPicking: launched,
+      guideShown: !document.getElementById("guide").hidden,
+      namesScreen: /Personal Information/.test(guideHtml),
+      showsValue: /500\.00/.test(guideHtml),
+      showsProvenance: /Box 1 of your W-2/.test(guideHtml),
+      showsWatchOut: /most common student mistake/.test(guideHtml),
+      showsSkipped: /parents/.test(guideHtml),
+      hasDisclaimer: /not tax preparation/i.test(guideHtml)
+    };
+  });
+
+  check("The plan offers a few places to file, not one",
+    handoff.optionCount >= 2 && handoff.optionCount <= 3, "offered " + handoff.optionCount);
+  check("No guide is offered until a product is picked",
+    handoff.buttonBeforePicking === false);
+  check("Picking a product records the choice",
+    !!handoff.picked, "software was " + handoff.picked);
+  check("Picking a product offers the guide", handoff.buttonAfterPicking === true);
+  check("The guide renders", handoff.guideShown === true);
+  check("The guide names the product's own screens", handoff.namesScreen === true);
+  check("The guide carries this student's figure, not a placeholder", handoff.showsValue === true);
+  check("Each figure says which document it came from", handoff.showsProvenance === true);
+  check("The guide warns about the mistake before it happens", handoff.showsWatchOut === true);
+  check("The guide says what can be skipped", handoff.showsSkipped === true);
+  check("The guide carries the check-your-own-forms disclaimer", handoff.hasDisclaimer === true);
+
+  /* A failure has to degrade into something a student can still act on. */
+  await page.route("**/api/filing-guide", function (route) {
+    route.fulfill({ status: 503, contentType: "application/json",
+      body: JSON.stringify({ error: "This feature is not configured on this deployment." }) });
+  });
+  const degraded = await page.evaluate(async function () {
+    document.getElementById("guide").hidden = true;
+    document.getElementById("guide").innerHTML = "";
+    document.querySelectorAll("[data-software]")[0].click();
+    document.getElementById("build-guide").click();
+    /* The click sets an in-flight message synchronously, so waiting for
+       any status text would exit immediately. Wait for the button to
+       settle back instead. */
+    for (let i = 0; i < 100 && document.getElementById("build-guide").disabled; i++) {
+      await new Promise(function (r) { setTimeout(r, 50); });
+    }
+    return {
+      message: document.getElementById("guide-status").textContent,
+      buttonUsable: !document.getElementById("build-guide").disabled,
+      planIntact: document.getElementById("plan").innerHTML.length > 500
+    };
+  });
+  check("A guide failure says so rather than failing silently",
+    degraded.message.length > 0, "status was \"" + degraded.message + "\"");
+  check("A guide failure leaves the button usable", degraded.buttonUsable === true);
+  check("A guide failure leaves the plan standing", degraded.planIntact === true);
+
   await browser.close();
   server.close();
   console.log("\n" + pass + " passed, " + fail + " failed.");

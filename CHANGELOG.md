@@ -7,11 +7,56 @@ node tests.js           20 checks, tax math
 node tests-extract.js   19 checks, document reading
 node tests-assisted.js  21 checks, reconciling the two readers
 node tests-ui.js        13 checks, walkthrough interactions against a stub DOM
-node tests-flow.js       8 checks, upload to applied, API stubbed
+node tests-flow.js      22 checks, upload to applied to guided, API stubbed
 node tests-browser.js   43 checks, a real browser (npm install playwright)
 ```
 
 None of this constitutes a complete tax-accuracy audit.
+
+## October: the guide, which is what this was always for
+
+Everything up to now has been setup. The questions, the dependency tests,
+the document reader: all of it exists to build a picture complete enough
+to say open this product, go to this screen, type this number in this
+box, skip that section and here is why.
+
+That now exists. At the end of the plan the tool names two or three
+products that fit this particular student, with what each would actually
+cost them. Picking one calls `/api/filing-guide`, which writes the
+screen-by-screen sequence for that product using their own figures.
+
+The design this replaces was a chat window, and it was rejected on
+purpose. A student who has never filed does not know what to ask, and a
+blank prompt demands the one thing they do not have. So the tool asks the
+questions and hands back a sequence. Guided, not interviewed.
+
+What the guide carries, per screen: what the screen is called and where
+it sits in that product's navigation, what to do there, a table of the
+exact values to type with the document each came from, and the mistake
+students make on that screen. Plus what to skip and why, which is as
+useful as what to do. A student who does not know the education credit
+belongs on their parents' return will hunt for it for twenty minutes.
+
+The recommendation moved to the end. It used to be a question in section
+eight, asked before the tool knew enough to answer it. Now the walkthrough
+works out the situation first and then recommends, which is the order that
+makes sense, and `collect()` no longer clears the choice on every
+keystroke because there is no radio to read.
+
+### What is sent, and what is not
+
+The situation: amounts, the answers given, and what was derived from them.
+No name, no Social Security number, no employer, no address, no school.
+Not stripped on the way out, simply never collected, so there is nothing
+of that kind to send. Skip the step and nothing is sent at all; the plan
+above it is produced entirely on the device.
+
+### A shared Anthropic module
+
+`api/_anthropic.js` now holds the key lookup, the workspace header, the
+call and the error mapping. All four were learned the hard way during
+setup, and two copies of them would have drifted. The leading underscore
+keeps Vercel from serving it as a route.
 
 ## October: the empty next page, and why it was the same bug as the one above
 

@@ -84,6 +84,11 @@
     <p>Campus Filing stores none of it either. The function writes nothing to disk, logs no document content, and keeps nothing after it answers. There is no database behind it, so there is no copy here to leak, subpoena or lose. When you close the tab, the only copy of your document that ever existed outside your own computer is already gone.</p>
     <p>That is the honest shape of it. This is not a claim that nothing is transmitted, because something is, when you ask for it. It is a claim that nothing is kept, by anyone, and that you decide each time.</p>
 
+    <h3>The step-by-step guide</h3>
+    <p>At the end of the walkthrough you pick where to file, and the site writes the screen-by-screen guide for that product. Writing it needs the same API, so your tax situation is sent: the amounts, the answers you gave, and what was worked out from them.</p>
+    <p>No name, no Social Security number, no employer, no address and no school. Not because they are stripped out on the way, but because this walkthrough never asks for any of them, so there is nothing of that kind to send. The same terms apply as above: not used for training, not retained, and not stored here.</p>
+    <p>Skip this step and nothing is sent. The plan above it is produced entirely on your device and stands on its own.</p>
+
     <h3>Why two readers instead of one</h3>
     <p>Both readers run, and their answers are compared rather than merged. Where they agree, the figure is marked as agreed and is the most trustworthy thing in the table. Where only the AI reader found something, it is labelled as coming from the AI reader alone. Where they disagree, both figures are shown, neither is applied, and you are asked to settle it against the paper.</p>
     <p>That last case is the reason for the design. The two readers fail differently. The local one fails loudly, finding nothing and saying so. A model fails quietly, returning a plausible number that sits in the right box and looks correct. Running only the model would mean trusting a reader whose mistakes are invisible, on a document that becomes a tax return. Running both means a disagreement is visible before it costs you anything.</p>
@@ -99,6 +104,7 @@
     <h2>How to verify this yourself</h2>
     <p>Open your browser's developer tools, switch to the Network tab, and run the entire walkthrough including a document upload. Every request will be to this domain, and if you never press an AI reader button, no request will carry your document at all.</p>
     <p>Press one and you will see exactly one request, to <span class="formref">/api/read-document</span> on this domain, carrying that one document's text or page image and nothing else. No answers, no other documents, no identifier for you.</p>
+    <p>Ask for the step-by-step guide and you will see one request to <span class="formref">/api/filing-guide</span>, carrying your figures and answers and nothing that identifies you.</p>
     <p>You do not have to take that on trust between releases either. The project's browser test suite loads every page, reads a PDF, and fails the build if any request leaves this domain.</p>
   </div>
 

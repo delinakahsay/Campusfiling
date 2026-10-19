@@ -233,7 +233,11 @@ function collect() {
   A.schoolstate = $("schoolstate").value;
   A.workedschool = $("workedschool").value;
   A.workedother = $("workedother").value;
-  A.software = radio("software");
+  /* Where to file is chosen at the end of the plan now, by clicking a
+     recommendation, not by a radio earlier in the walkthrough. collect()
+     runs on every keystroke, so it must not clear that choice. */
+  const softwareRadio = radio("software");
+  if (softwareRadio) A.software = softwareRadio;
 }
 
 /* ---------- dependency ---------- */
@@ -523,18 +527,6 @@ function wireReactions() {
         }
       }
       n.innerHTML = bits.map(function (b) { return "<p>" + b + "</p>"; }).join("");
-    });
-  });
-
-  document.querySelectorAll('input[name="software"]').forEach(function (el) {
-    el.addEventListener("change", function () {
-      const n = $("soft-note");
-      if (radio("software") === "turbotax") {
-        n.hidden = false;
-        n.innerHTML = "Worth knowing before you commit. TurboTax's free edition covers only simple returns, and adding a 1098-T, a 1099-NEC, or a state return typically moves you to a paid tier. Intuit settled with the Federal Trade Commission over how that free edition was advertised. FreeTaxUSA handles the same forms at no federal cost.";
-      } else {
-        n.hidden = true;
-      }
     });
   });
 }
@@ -1169,7 +1161,6 @@ function validate(step) {
     if (!$("schoolstate").value) return fail(7, "Choose your school's state.");
     if (!$("workedschool").value) return fail(7, "Answer whether you worked in your school's state.");
     if (!$("workedother").value) return fail(7, "Answer the third state question.");
-    if (!radio("software")) return fail(7, "Choose how you plan to file.");
   }
   return true;
 }
@@ -1506,40 +1497,33 @@ function buildPlan() {
   if (A.ssn === "no") flags.push("You need a Social Security number or ITIN to file. If you need an ITIN, <span class='formref'>Form W-7</span> is submitted with your paper return and takes several weeks.");
   if (flags.length) h += card("flag", "Things to handle before you file", flags);
 
-  let rec, why;
-  if (d.seNet >= TAX.selfEmploymentTrigger) {
-    rec = "FreeTaxUSA";
-    why = "Schedule C and Schedule SE are included free here. TurboTax routes gig income to a self-employed tier that runs well over $100 for the same two forms.";
-  } else if (d.agi <= TAX.freeFileIncomeLimit) {
-    rec = "An IRS Free File partner";
-    why = "Your income is comfortably under the most recently published Free File limit of " + money(TAX.freeFileIncomeLimit) +
-      ", which applied to " + TAX.freeFileLimitAppliesToYear + " returns. The limit for this year is published each winter and has risen every year, so check the IRS Free File page before assuming. Eight partners participate, each with its own extra restrictions on age, state, and income.";
-  } else {
-    rec = "FreeTaxUSA";
-    why = "Free federal filing including the education and investment forms, with a modest per state charge.";
-  }
+  /* ---------- where to file ----------
 
-  if (A.software === "vita") {
-    rec = "Your campus VITA site";
-    why = "Certified volunteers, free, and they catch things software misses. Many business schools run one staffed by accounting students. Bring every document on the checklist above.";
-  } else if (A.software && A.software !== "undecided") {
-    const names = { freefile: "an IRS Free File partner", freetaxusa: "FreeTaxUSA", turbotax: "TurboTax", fillable: "IRS Free File Fillable Forms" };
-    h += card(A.software === "turbotax" ? "flag" : "ok", "About the software you picked", [
-      "You chose " + (names[A.software] || A.software) + ".",
-      A.software === "turbotax"
-        ? "Be ready for the free tier to end. Adding a 1098-T, a 1099, or a state return typically moves you to a paid product. Intuit settled with the Federal Trade Commission over how that free edition was advertised. If you would rather not pay, " + rec + " handles the same forms."
-        : (A.software === "fillable"
-          ? "Fillable Forms have no income limit and no guided interview. They are electronic versions of the paper forms with basic math checking, so they suit someone who already knows which forms they need. If that is not you, " + rec + " will be less painful."
-          : "Good fit for your situation. " + why)
-    ]);
-  }
+     This is the hand-off. The walkthrough has worked out the situation;
+     now it names two or three products that actually fit it, says what
+     each costs this particular student, and lets them pick. Picking is
+     what unlocks the step by step guide, because a guide that does not
+     name real screens in a real product is the generic advice this tool
+     exists to replace. */
 
-  if (!A.software || A.software === "undecided" || A.software === "vita") {
-    h += card("ok", "Where to file: " + rec, [
-      why,
-      "Whatever you choose, choose direct deposit. Paper checks take four to six weeks longer, and a mailed check to a campus address over the summer is a common way for refunds to go missing."
-    ]);
-  }
+  const options = recommendSoftware(d);
+  h += '<div class="result-card is-ok" id="software-pick">' +
+    '<h3>Where to file</h3>' +
+    '<p>These fit your situation. Pick one and the next step lays out exactly what to enter, screen by screen.</p>' +
+    '<div class="software-options">' +
+    options.map(function (o, i) {
+      return '<button type="button" class="software-option' + (i === 0 ? ' best' : '') + '" data-software="' + o.key + '" aria-pressed="false">' +
+        '<span class="so-head"><strong>' + o.name + '</strong>' +
+        (i === 0 ? '<span class="tag">Best fit for you</span>' : '') +
+        '<span class="so-cost">' + o.cost + '</span></span>' +
+        '<span class="so-why">' + o.why + '</span>' +
+        (o.caution ? '<span class="so-caution">' + o.caution + '</span>' : '') +
+        '</button>';
+    }).join("") +
+    '</div>' +
+    '<div id="guide-launch"></div>' +
+    '<p class="caption">Whichever you pick, choose direct deposit. Paper checks take four to six weeks longer, and a mailed check to a campus address over the summer is a common way for refunds to go missing.</p>' +
+    '</div>';
 
   h += card("info", "Note on IRS Direct File", [
     "If someone tells you to use IRS Direct File, it no longer exists. The IRS told its 25 partner states in November 2025 that Direct File would not be available and set no future launch date. A lot of advice written in 2024 and 2025 still recommends it.",
@@ -1547,8 +1531,72 @@ function buildPlan() {
   ]);
 
   out.innerHTML = h;
+  wireSoftwarePick();
 }
 
+
+/* ---------- choosing where to file ---------- */
+
+/* Ranked for this student rather than in general. The ordering rules are
+   the ones that actually bite: gig income pushes TurboTax into a tier
+   costing more than the tax owed, and a low income opens Free File, which
+   most students have never heard of. */
+function recommendSoftware(d) {
+  const out = [];
+  const hasGig = d.seNet >= TAX.selfEmploymentTrigger;
+  const underFreeFile = d.agi <= TAX.freeFileIncomeLimit;
+  const multiState = stateCount(d.states) > 1;
+
+  if (hasGig) {
+    out.push({ key: "freetaxusa", name: "FreeTaxUSA",
+      cost: "Free federal, small fee per state",
+      why: "You have gig income, which needs Schedule C and Schedule SE. Both are included free here.",
+      caution: "" });
+  }
+
+  if (underFreeFile) {
+    out.push({ key: "freefile", name: "IRS Free File partner",
+      cost: "Free federal, often free state",
+      why: "Your income is under the most recently published Free File limit of " + money(TAX.freeFileIncomeLimit) +
+        ". Eight partners take part and each sets its own extra limits on age, state and income, so start from the IRS Free File page rather than from a company's own site.",
+      caution: hasGig ? "Check the partner you pick supports Schedule C before you start." : "" });
+  }
+
+  if (!hasGig) {
+    out.push({ key: "freetaxusa", name: "FreeTaxUSA",
+      cost: "Free federal, small fee per state",
+      why: "Handles the 1098-T and the investment forms without pushing you to a paid tier." +
+        (multiState ? " With more than one state return you will pay that state fee more than once." : ""),
+      caution: "" });
+  }
+
+  out.push({ key: "vita", name: "A VITA site or campus clinic",
+    cost: "Free, in person",
+    why: "Certified volunteers do the return with you and catch things software misses. Many business schools run one staffed by accounting students.",
+    caution: "Appointments fill from February, so book early." });
+
+  if (!d.treatAsDependent && !hasGig && !underFreeFile) {
+    out.push({ key: "turbotax", name: "TurboTax",
+      cost: "Free tier, but most students lose it",
+      why: "The most familiar option, and the gentlest interview.",
+      caution: "Adding a 1098-T, a 1099 or a state return usually moves you to a paid product. Intuit settled with the Federal Trade Commission over how that free edition was advertised." });
+  }
+
+  return out.slice(0, 3);
+}
+
+function wireSoftwarePick() {
+  document.querySelectorAll("[data-software]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      A.software = b.dataset.software;
+      document.querySelectorAll("[data-software]").forEach(function (other) {
+        other.classList.toggle("chosen", other === b);
+        other.setAttribute("aria-pressed", other === b ? "true" : "false");
+      });
+      offerGuide(b.dataset.software, b.querySelector("strong").textContent);
+    });
+  });
+}
 
 /* ---------- step-by-step worksheet ---------- */
 
@@ -1821,7 +1869,7 @@ function wipe() {
     el.classList.remove("prefilled");
   });
   document.querySelectorAll(".prefill-tag").forEach(function (t) { t.classList.remove("on"); });
-  ["nra-warn", "spt-warn", "married-warn", "mkt-warn", "se-warn", "sch-warn", "state-note", "soft-note", "dep-verdict", "extract-note", "stipend-note", "review"]
+  ["nra-warn", "spt-warn", "married-warn", "mkt-warn", "se-warn", "sch-warn", "state-note", "dep-verdict", "extract-note", "stipend-note", "review"]
     .forEach(function (id) { const el = $(id); if (el) el.hidden = true; });
   A.files = [];
   A.extra = [];
