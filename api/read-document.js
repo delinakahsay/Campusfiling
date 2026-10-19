@@ -216,13 +216,21 @@ module.exports = async function handler(req, res) {
        different matter: they describe the key, the model or the shape of
        the call, never the document, and without them a misconfigured
        deployment is indistinguishable from a broken one. */
-    let category = "";
+    let category = "", detail = "";
     try {
       const err = await upstream.json();
       category = (err && err.error && err.error.type) || "";
+      /* 400, 401, 403 and 404 describe the key, the model or the shape of
+         the call. Anthropic words these in terms of fields and limits, not
+         content, so the message is safe to surface and is the difference
+         between fixing a deployment in a minute and guessing at it. */
+      if ([400, 401, 403, 404].indexOf(upstream.status) > -1) {
+        detail = String((err && err.error && err.error.message) || "").slice(0, 300);
+      }
     } catch (e) { /* nothing to add */ }
 
-    console.error("assisted reader upstream " + upstream.status + " " + category + " (model " + MODEL + ")");
+    console.error("assisted reader upstream " + upstream.status + " " + category +
+      (detail ? ": " + detail : "") + " (model " + MODEL + ")");
 
     const byStatus = {
       400: "The assisted reader sent a request Anthropic rejected. This is a bug in the deployment, not in your document.",
@@ -240,7 +248,8 @@ module.exports = async function handler(req, res) {
     res.status(upstream.status === 429 ? 429 : 502).json({
       error: message,
       upstreamStatus: upstream.status,
-      category: category
+      category: category,
+      detail: detail
     });
     return;
   }
