@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Your account | Campus Filing</title>
+<meta name="description" content="Sign in to Campus Filing to keep your walkthrough answers between visits. Optional." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Your account | Campus Filing" />
+<meta property="og:description" content="Sign in to Campus Filing to keep your walkthrough answers between visits. Optional." />
+<meta property="og:image" content="assets/og.png" />
+<meta property="og:site_name" content="Campus Filing" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="assets/images/filing-folder.png" type="image/png" />
+<meta name="theme-color" content="#101519" />
+<script src="assets/js/theme.js"></script>
+<link rel="stylesheet" href="assets/css/base.css" />
+<link rel="stylesheet" href="assets/css/layout.css" />
+<link rel="stylesheet" href="assets/css/components.css" />
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="wordmark" href="index.html">Campus <em>Filing</em></a>
+    <button class="nav-toggle" aria-expanded="false" aria-controls="nav">Menu</button>
+    <nav class="site-nav" id="nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="how-it-works.html">How it works</a>
+      <a href="guides/index.html">Guides</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="faq.html">FAQ</a>
+      <a href="account.html" aria-current="page">Account</a>
+      <a class="nav-cta" href="app/file.html">Build my filing plan</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Your account</p>
+    <h1>Pick up your plan where you left off</h1>
+    <p>An account is optional. It keeps your walkthrough answers so you can come back to them, one plan per tax year. Everything else on this site works the same without one.</p>
+  </div>
+</div>
+<main id="main">
+<section class="band">
+<div class="wrap split">
+
+  <div>
+    <div class="note" id="acct-status" role="status" hidden></div>
+
+    <div id="acct-loading"><p>Checking whether you are signed in.</p></div>
+
+    <!-- Signed out -->
+    <div id="acct-out" hidden>
+      <div class="card">
+        <h2 id="auth-title">Sign in</h2>
+        <form id="auth-form" novalidate>
+          <div class="field">
+            <label for="auth-email">Email</label>
+            <input type="email" id="auth-email" autocomplete="email" maxlength="320" required />
+          </div>
+          <div class="field">
+            <label for="auth-password">Password</label>
+            <small id="auth-password-help" hidden>At least 8 characters.</small>
+            <input type="password" id="auth-password" autocomplete="current-password" minlength="8" maxlength="72" required />
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn btn-green" id="auth-submit">Sign in</button>
+            <span class="error" id="auth-err" role="alert"></span>
+          </div>
+        </form>
+        <p class="acct-switch"><button type="button" class="btn-link" id="auth-switch">New here? Create an account</button></p>
+        <p class="acct-switch"><button type="button" class="btn-link" id="forgot-open">Forgot your password?</button></p>
+      </div>
+
+      <div class="card acct-gap" id="forgot" hidden>
+        <h2>Reset your password</h2>
+        <p>Enter the email on your account and we will send a link to set a new password.</p>
+        <form id="forgot-form" novalidate>
+          <div class="field">
+            <label for="forgot-email">Email</label>
+            <input type="email" id="forgot-email" autocomplete="email" maxlength="320" required />
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn" id="forgot-submit">Send reset link</button>
+            <span class="error" id="forgot-err" role="alert"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Arrived from a reset link -->
+    <div id="acct-reset" hidden>
+      <div class="card">
+        <h2>Choose a new password</h2>
+        <form id="reset-form" novalidate>
+          <div class="field">
+            <label for="reset-password">New password</label>
+            <small>At least 8 characters.</small>
+            <input type="password" id="reset-password" autocomplete="new-password" minlength="8" maxlength="72" required />
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn btn-green" id="reset-submit">Save new password</button>
+            <span class="error" id="reset-err" role="alert"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Signed in -->
+    <div id="acct-in" hidden>
+      <p class="acct-who">Signed in as <strong id="acct-email"></strong></p>
+
+      <h2>Your saved plans</h2>
+      <p id="plans-empty" hidden>No saved plans yet. Finish the walkthrough and choose <strong>Save to my account</strong> on your filing plan.</p>
+      <div class="table-wrap" id="plans-wrap" hidden>
+        <table class="data">
+          <caption class="sr-only">Saved plans by tax year</caption>
+          <thead><tr><th scope="col">Tax year</th><th scope="col">Last saved</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody id="plans-body"></tbody>
+        </table>
+      </div>
+      <span class="error" id="plans-err" role="alert"></span>
+
+      <div class="btn-row">
+        <a class="btn btn-green" href="app/file.html">Start a new plan</a>
+        <button type="button" class="btn btn-ghost" id="signout">Sign out</button>
+      </div>
+
+      <details class="acct-more">
+        <summary>Change your password</summary>
+        <form id="change-form" novalidate>
+          <div class="field">
+            <label for="change-password">New password</label>
+            <small>At least 8 characters.</small>
+            <input type="password" id="change-password" autocomplete="new-password" minlength="8" maxlength="72" required />
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn" id="change-submit">Save new password</button>
+            <span class="error" id="change-err" role="alert"></span>
+          </div>
+        </form>
+      </details>
+
+      <details class="acct-more">
+        <summary>Delete your account</summary>
+        <p>This deletes your account and every plan saved to it, straight away. It cannot be undone.</p>
+        <div class="btn-row">
+          <button type="button" class="btn btn-ghost" id="delete-account">Delete my account</button>
+          <span class="error" id="delete-err" role="alert"></span>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div>
+    <div class="note">
+      <p><strong>What an account stores</strong></p>
+      <p>Your email, a password Supabase stores only as a hash, and the walkthrough answers you choose to save: the same answers <em>Save my answers to a file</em> writes, kept in a database instead of your downloads.</p>
+      <p>Never your documents, and never a Social Security number, employer, address or school. The walkthrough has no field for any of them.</p>
+    </div>
+    <div class="note note-warn acct-gap">
+      <p><strong>This is a student project</strong></p>
+      <p>For the capstone demo, use practice figures rather than your real income. You can delete a plan or the whole account at any time from this page.</p>
+    </div>
+    <p class="acct-gap"><a href="privacy.html#accounts">How accounts are kept private</a></p>
+  </div>
+
+</div>
+</section>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="wordmark" href="index.html">Campus <em>Filing</em></a>
+        <p style="margin-top:10px;color:var(--slate);max-width:34ch">Tax guidance written for students and recent graduates, built as a capstone project at the George Washington University School of Business.</p>
+      </div>
+      <div>
+        <h4>Filing</h4>
+        <ul>
+          <li><a href="app/file.html">Start the walkthrough</a></li>
+          <li><a href="estimate.html">Refund estimator</a></li>
+          <li><a href="deadlines.html">Deadlines</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Guides</h4>
+        <ul>
+          <li><a href="guides/documents.html">Document checklist</a></li>
+          <li><a href="guides/international.html">International students</a></li>
+          <li><a href="guides/glossary.html">Glossary</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="about.html">About and methodology</a></li>
+          <li><a href="privacy.html">Privacy and security</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-legal">
+      <p>Campus Filing is a student project. It is educational software, not tax preparation, and it does not transmit returns. Figures reflect tax year <span data-tax="year">2026</span> rules published in IRS Revenue Procedure 2025-32.</p>
+      <p>Copyright 2026 Campus Filing, a student project at the George Washington University School of Business. Not affiliated with the Internal Revenue Service.</p>
+      <p class="footer-theme"><button type="button" class="btn btn-ghost btn-sm" id="theme-toggle" aria-pressed="false">Switch to dark</button></p>
+      </div>
+  </div>
+</footer>
+
+<script src="assets/js/tax-constants.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/account.js"></script>
+</body>
+</html>

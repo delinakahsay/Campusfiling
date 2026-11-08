@@ -330,6 +330,86 @@ async function main() {
   /* Reading a document must also stay local, worker and all. */
   check("Reading a document contacts nothing offsite", offsite.length === 0, offsite.join(" | "));
 
+  /* A deliberate 400 or 401 from /api is logged by the browser as a
+     failed resource. Those are the cases under test, not faults. */
+  const unexpected = function () {
+    return errors.filter(function (e) { return !/status of 40[01] .*\/api\/(auth|plans)/.test(e); });
+  };
+
+  /* Accounts, with /api stubbed. The real endpoints are covered by
+     tests-accounts.js; this checks the pages drive them correctly and
+     still contact nothing offsite while doing it. */
+  let signedIn = false;
+  let savedBody = null;
+  await page.route("**/api/auth", async function (route) {
+    const req = route.request();
+    if (req.method() === "GET") return route.fulfill({ json: { user: signedIn ? { email: "test@example.edu" } : null } });
+    const body = req.postDataJSON();
+    if (body.action === "signin") {
+      if (body.password !== "practice-pass") return route.fulfill({ status: 400, json: { error: "That email and password do not match an account." } });
+      signedIn = true;
+      return route.fulfill({ json: { user: { email: body.email } } });
+    }
+    if (body.action === "signout") { signedIn = false; return route.fulfill({ json: { user: null } }); }
+    return route.fulfill({ status: 400, json: { error: "Unknown action." } });
+  });
+  await page.route("**/api/plans**", async function (route) {
+    const req = route.request();
+    if (!signedIn) return route.fulfill({ status: 401, json: { error: "Sign in to use saved plans.", signedOut: true } });
+    if (req.method() === "PUT") { savedBody = req.postDataJSON(); return route.fulfill({ json: { taxYear: 2026, updatedAt: "2026-11-08T17:00:00Z" } }); }
+    if (req.url().indexOf("year=2026") > -1) return route.fulfill({ json: { answers: { version: 1, taxYear: 2026, fields: { age: "33" }, radios: {}, checks: [] } } });
+    return route.fulfill({ json: { plans: [{ taxYear: 2026, updatedAt: "2026-11-08T17:00:00Z" }] } });
+  });
+
+  offsite.length = 0; errors.length = 0;
+  await page.goto(base + "/account.html", { waitUntil: "networkidle" });
+  check("Account page shows the sign-in form when signed out",
+    await page.isVisible("#auth-form") && !(await page.isVisible("#acct-in")));
+
+  await page.fill("#auth-email", "test@example.edu");
+  await page.fill("#auth-password", "wrong-password");
+  await page.click("#auth-submit");
+  await page.waitForFunction(function () { return document.getElementById("auth-err").textContent.length > 0; });
+  check("A wrong password shows the server's plain message",
+    (await page.textContent("#auth-err")).indexOf("do not match") > -1);
+
+  await page.fill("#auth-password", "practice-pass");
+  await page.click("#auth-submit");
+  await page.waitForSelector("#acct-in:not([hidden])");
+  check("Signing in shows the email and the saved plans",
+    (await page.textContent("#acct-email")) === "test@example.edu" &&
+    (await page.getAttribute("#plans-body a", "href")) === "app/file.html?resume=2026");
+  check("The account page contacts nothing offsite", unexpected().length === 0 && offsite.length === 0, unexpected().concat(offsite).join(" | "));
+
+  offsite.length = 0; errors.length = 0;
+  await page.goto(base + "/app/file.html?resume=2026", { waitUntil: "networkidle" });
+  await page.waitForFunction(function () { return document.getElementById("age").value === "33"; }, null, { timeout: 5000 }).catch(function () {});
+  check("Opening a saved plan restores its answers into the walkthrough",
+    (await page.inputValue("#age")) === "33", "age is " + (await page.inputValue("#age")));
+  check("The resume parameter is cleared from the address bar", page.url().indexOf("resume") < 0);
+
+  const saved = await page.evaluate(async function () {
+    await saveToAccount();
+    const note = Array.from(document.querySelectorAll(".save-note")).filter(function (n) { return !n.hidden; })[0];
+    return note ? note.textContent : "";
+  });
+  check("Save to my account sends the walkthrough's own answers object",
+    savedBody && savedBody.answers && savedBody.answers.version === 1 && savedBody.answers.fields.age === "33" &&
+    JSON.stringify(savedBody).indexOf("files") < 0, JSON.stringify(savedBody).slice(0, 120));
+  check("Saving confirms which tax year was saved", saved.indexOf("2026 plan") > -1, saved);
+
+  signedIn = false;
+  const signedOutNote = await page.evaluate(async function () {
+    await saveToAccount();
+    const note = Array.from(document.querySelectorAll(".save-note")).filter(function (n) { return !n.hidden; })[0];
+    return note ? note.innerHTML : "";
+  });
+  check("Saving while signed out explains it and links to sign in in a new tab",
+    signedOutNote.indexOf("account.html?from=save") > -1 && signedOutNote.indexOf('target="_blank"') > -1, signedOutNote);
+  check("The walkthrough's account features contact nothing offsite", unexpected().length === 0 && offsite.length === 0, unexpected().concat(offsite).join(" | "));
+  await page.unroute("**/api/auth");
+  await page.unroute("**/api/plans**");
+
   /* Every other page, checked the same way. */
   for (const p of ["/index.html", "/privacy.html", "/estimate.html", "/faq.html",
                    "/deadlines.html", "/how-it-works.html", "/about.html",
