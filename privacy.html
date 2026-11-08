@@ -32,6 +32,7 @@
       <a href="guides/index.html">Guides</a>
       <a href="deadlines.html">Deadlines</a>
       <a href="faq.html">FAQ</a>
+      <a href="account.html">Account</a>
       <a class="nav-cta" href="app/file.html">Build my filing plan</a>
     </nav>
   </div>
@@ -41,7 +42,7 @@
   <div class="wrap">
     <p class="eyebrow">Privacy and security</p>
     <h1>We ask about your situation, never your identity</h1>
-    <p>Tax software has to know who you are. This tool does not, so it does not ask. Your documents are read on your device, one can be sent to an AI reader when you ask for it, and nothing is stored at either end.</p>
+    <p>Tax software has to know who you are. This tool does not, so it does not ask. Your documents are read on your device, one can be sent to an AI reader when you ask for it, and no document is ever stored. Answers are kept only if you create an account and choose to save them.</p>
   </div>
 </div>
 
@@ -56,14 +57,13 @@
       <li>Bank account or routing numbers</li>
       <li>Dates of birth, addresses, or phone numbers</li>
       <li>Employer names or your school's name</li>
-      <li>Anything that identifies you personally</li>
+      <li>Anything that identifies you personally, apart from the email address an optional account needs</li>
     </ul>
 
     <h2>What happens to your answers</h2>
-    <p>The walkthrough runs entirely in your browser. Your answers live in page memory and are gone the moment you close the tab. Nothing is written to a server or a database.</p>
+    <p>The walkthrough runs entirely in your browser. Your answers live in page memory and are gone the moment you close the tab. Nothing is written to a server or a database unless you create an account and choose to save, which is described below.</p>
     <p>One value is kept in browser storage, and only one: whether you chose the light or the dark theme. It is the word <code>light</code> or <code>dark</code> under the key <code>campusfiling-theme</code>, it never leaves your browser, and clearing your site data removes it. No answer, figure or document is stored there.</p>
-    <p>That is also why there is no account. Saving a return across visits requires a database, and a database holding student income figures is a responsibility this project takes seriously rather than casually.</p>
-    <p>Instead, the walkthrough can write your answers to a file you keep yourself, and read one back when you return. The file goes to your downloads folder, you control it, and you can delete it. Your uploaded documents are deliberately left out of it, because a saved file would otherwise contain the contents of your W-2.</p>
+    <p>You do not need an account. The walkthrough can write your answers to a file you keep yourself, and read one back when you return. The file goes to your downloads folder, you control it, and you can delete it. Your uploaded documents are deliberately left out of it, because a saved file would otherwise contain the contents of your W-2.</p>
 
     <h2>What happens to your documents</h2>
     <p>Every document is read on your device first. A PDF is opened by a reader served from this site, its text layer is searched for labelled amounts, and that step involves no network at all. Your file is never uploaded, by either reader, at any point.</p>
@@ -93,8 +93,17 @@
     <p>Both readers run, and their answers are compared rather than merged. Where they agree, the figure is marked as agreed and is the most trustworthy thing in the table. Where only the AI reader found something, it is labelled as coming from the AI reader alone. Where they disagree, both figures are shown, neither is applied, and you are asked to settle it against the paper.</p>
     <p>That last case is the reason for the design. The two readers fail differently. The local one fails loudly, finding nothing and saying so. A model fails quietly, returning a plausible number that sits in the right box and looks correct. Running only the model would mean trusting a reader whose mistakes are invisible, on a document that becomes a tax return. Running both means a disagreement is visible before it costs you anything.</p>
 
-    <h2>What changes when accounts arrive</h2>
-    <p>A later version will store documents and profiles so a return can be picked up next January. That version will hold real financial documents belonging to real students, which is a different responsibility from this one, and this page will describe exactly what is retained, where it lives, how it is encrypted, and how to delete it, before the feature ships rather than after.</p>
+    <h2 id="accounts">If you create an account</h2>
+    <p>An account is optional and does one thing: it keeps your walkthrough answers so you can pick them up on another visit or another device. One saved plan per tax year.</p>
+    <p>What it stores:</p>
+    <ul>
+      <li><strong>Your email address and password.</strong> The password is held by Supabase, our database provider, only as a one-way hash, so nobody on this project can read it.</li>
+      <li><strong>The answers you choose to save</strong>, when you press <em>Save to my account</em>. These are exactly the answers <em>Save my answers to a file</em> would write: your choices in the walkthrough and the amounts you entered. Saving is never automatic.</li>
+    </ul>
+    <p>What it never stores: your documents, in any form, and anything the walkthrough has no field for, which still includes your Social Security number, employer, address and school.</p>
+    <p>Each student can read and change only their own saved plans. That rule lives in the database itself, through Row Level Security, rather than in this site's code, so a mistake in the site cannot show one student another student's plan. Your browser never talks to the database directly: it talks to <span class="formref">/api/auth</span> and <span class="formref">/api/plans</span> on this domain, and your session is kept in a cookie that page scripts cannot read.</p>
+    <p>You can delete a single plan, or your whole account and everything saved to it, at any time from the Account page. Deleting the account removes it immediately rather than flagging it for later.</p>
+    <p>This is a student project, so for the demonstration we use practice figures, not real student income. If you try it, do the same.</p>
 
     <h2>Nothing else is loaded from anywhere</h2>
     <p>Apart from the AI reader you choose to invoke, this site loads nothing from any other party. The fonts are served from here rather than from Google. The PDF reader is served from here rather than from a CDN. There is no analytics script, no tag manager, no embedded widget, and no advertising pixel anywhere on the site.</p>
@@ -105,6 +114,7 @@
     <p>Open your browser's developer tools, switch to the Network tab, and run the entire walkthrough including a document upload. Every request will be to this domain, and if you never press an AI reader button, no request will carry your document at all.</p>
     <p>Press one and you will see exactly one request, to <span class="formref">/api/read-document</span> on this domain, carrying that one document's text or page image and nothing else. No answers, no other documents, no identifier for you.</p>
     <p>Ask for the step-by-step guide and you will see one request to <span class="formref">/api/filing-guide</span>, carrying your figures and answers and nothing that identifies you.</p>
+    <p>Sign in and save, and you will see requests to <span class="formref">/api/auth</span> and <span class="formref">/api/plans</span> on this domain, and nowhere else. The database is reached from the server, not from your browser.</p>
     <p>You do not have to take that on trust between releases either. The project's browser test suite loads every page, reads a PDF, and fails the build if any request leaves this domain.</p>
   </div>
 
@@ -112,12 +122,12 @@
     <div class="note note-good">
       <p><strong>Why this matters more than usual</strong></p>
       <p>A tax tool is an attractive target precisely because of what people type into one. The safest way to protect information is not to hold it.</p>
-      <p>That principle survives the AI reader. One document goes out when you ask, nothing is kept at either end, and there is still no store here to breach.</p>
+      <p>That principle survives the AI reader and the optional account. One document goes out when you ask and nothing is kept at either end, and an account holds only the answers you choose to save, never a document.</p>
     </div>
 
-    <h3 style="margin-top:1.8rem">Planned account features</h3>
-    <p style="font-size:15px;color:var(--slate)">A future version will let you save a profile and keep each year's documents in one place. When that is built, this page will state exactly what is stored, where, and for how long, before the feature ships rather than after.</p>
-    <p style="font-size:15px;color:var(--slate)">The demonstration version of that feature will use generated sample profiles, not real student data.</p>
+    <h3 style="margin-top:1.8rem">Accounts, in short</h3>
+    <p style="font-size:15px;color:var(--slate)">Optional. An email, a hashed password, and the answers you choose to save, one plan per tax year. No documents. Delete a plan or the whole account whenever you like from the <a href="account.html">Account page</a>.</p>
+    <p style="font-size:15px;color:var(--slate)">The demonstration uses practice figures, not real student data.</p>
 
     <h3 style="margin-top:1.8rem">Read it from the source</h3>
     <p style="font-size:15px;color:var(--slate)">Do not take this page's word for what Anthropic does with the request. Their published position on training and on commercial data is here:</p>

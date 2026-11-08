@@ -54,8 +54,33 @@ correct here.
 
 ## Supabase
 
-The project exists and is configured, but **no application code talks to
-it yet**. Login is the next phase. What is already set up:
+Optional accounts and saved plans are live. The browser never calls
+Supabase: pages call `/api/auth` and `/api/plans` on this domain, and
+those call Supabase server side, so `connect-src 'self'` did not have to
+be loosened. The schema is in `supabase/schema.sql` and is safe to run
+again in the SQL editor.
+
+- `saved_plans`: one row per student per tax year, holding the same
+  answers object "Save my answers to a file" writes. Never documents.
+- Row Level Security limits every operation to the caller's own rows.
+  `user_id` defaults to `auth.uid()` and the API never sends it.
+- `delete_my_account()` lets a signed-in student delete themselves, and
+  their plans with them, without a service key.
+- Sessions are HttpOnly, Secure, SameSite=Strict cookies on `/api`.
+- **Confirm email is on.** Supabase's built-in email only delivers to
+  members of the Supabase org, so anyone else who signs up never gets a
+  confirmation link. For a classroom demo either turn Confirm email off
+  (Authentication, Sign In / Providers) or add custom SMTP.
+- The free plan pauses a project after a week without traffic. If sign-in
+  suddenly says the account service did not respond, resume it from the
+  dashboard.
+
+`api/_supabase.js` falls back to the project URL and publishable key when
+the environment variables are missing, because Vercel gave them to
+Production only and previews would otherwise have no database. Both are
+public values.
+
+What was already set up:
 
 - **Auto-expose new tables: off.** Supabase's own recommendation. A new
   table is private until you grant access to it deliberately.

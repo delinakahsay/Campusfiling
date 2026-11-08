@@ -25,6 +25,7 @@ campus-filing/
   estimate.html         Four question refund estimator
   deadlines.html        Season timeline
   privacy.html          What is collected and what is not
+  account.html          Optional sign in and saved plans
   about.html            Problem statement, methodology, data sources
   guides/
     index.html          Guide hub
@@ -54,6 +55,10 @@ campus-filing/
     _anthropic.js       Key, workspace, call and error handling, in one place
     read-document.js    Reads a document the local reader could not
     filing-guide.js     Writes the screen-by-screen guide for the chosen product
+    _supabase.js        Supabase calls, session cookies, error wording
+    auth.js             Sign up, sign in, sign out, reset, delete account
+    plans.js            Saved plans, one per tax year, under Row Level Security
+  supabase/schema.sql   Tables, policies and functions, applied in the SQL editor
   vercel.json           Security headers and the content security policy
   tests.js              Tax calculation
   tests-extract.js      Document reading, no browser needed
@@ -71,7 +76,8 @@ node tests-extract.js   19 checks, document reading
 node tests-assisted.js  21 checks, reconciling the two readers
 node tests-ui.js        13 checks, walkthrough interactions
 node tests-flow.js      24 checks, upload to applied to guided, API stubbed
-node tests-browser.js   43 checks, needs: npm install playwright
+node tests-accounts.js  22 checks, accounts and saved plans, Supabase stubbed
+node tests-browser.js   53 checks, needs: npm install playwright
 ```
 
 `tests-browser.js` is the one that matters most, and it exists because the

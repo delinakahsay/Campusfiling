@@ -1,8 +1,9 @@
 /* Campus Filing: the nine section walkthrough.
    Requires tax-constants.js to be loaded first.
 
-   Nothing persists. Answers live in the A object and are gone when the
-   tab closes or reloads. That is deliberate, see privacy.html. */
+   Nothing persists unless the student asks. Answers live in the A object
+   and are gone when the tab closes or reloads, unless they are saved to a
+   file or, for someone signed in, to their account. See privacy.html. */
 
 /* Practice figures for the demo button. These are invented. The build
    does not read uploaded documents, so nothing here is derived from a
@@ -1102,8 +1103,68 @@ function say(message, kind) {
   note.textContent = message;
 }
 
+/* ---------- saving to an account ----------
+
+   Optional, and the same answers object as the file above. It goes to
+   /api/plans on this domain, which keeps one copy per tax year for the
+   signed-in student. Documents are never included, for the same reason
+   they are left out of the file. */
+
+async function plansApi(path, options) {
+  options = options || {};
+  try {
+    const res = await fetch(path, {
+      method: options.method || "GET",
+      headers: options.body ? { "Content-Type": "application/json" } : {},
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      credentials: "same-origin"
+    });
+    let data = {};
+    try { data = await res.json(); } catch (e) { data = {}; }
+    return { ok: res.ok, status: res.status, data: data };
+  } catch (e) {
+    return { ok: false, status: 0, data: { error: "Could not reach the server. Your answers are still here; try again, or save them to a file." } };
+  }
+}
+
+async function saveToAccount() {
+  const button = $("save-account");
+  if (button) button.disabled = true;
+  const r = await plansApi("/api/plans", { method: "PUT", body: { answers: answersToObject() } });
+  if (button) button.disabled = false;
+
+  if (r.status === 401) {
+    say("Sign in to save to an account. Your answers stay on this page in the meantime, or you can save them to a file instead.", "note-warn");
+    const note = document.querySelector(".save-note:not([hidden])");
+    if (note) {
+      const link = document.createElement("a");
+      link.href = "../account.html?from=save";
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = " Sign in (opens a new tab, so nothing here is lost)";
+      note.appendChild(link);
+    }
+    return;
+  }
+  if (!r.ok) { say(r.data.error || "Your answers could not be saved just now. Try again, or save them to a file.", "note-warn"); return; }
+  say("Saved to your account as your " + r.data.taxYear + " plan. Open it any time from the Account page. Uploaded documents are not saved, by design.", "note-good");
+}
+
+async function resumeFromAccount() {
+  const year = new URLSearchParams(location.search).get("resume");
+  if (!year) return;
+  history.replaceState(null, "", location.pathname);
+  const r = await plansApi("/api/plans?year=" + encodeURIComponent(year));
+  if (r.status === 401) { say("Sign in on the Account page to open a saved plan.", "note-warn"); return; }
+  if (!r.ok) { say(r.data.error || "That saved plan could not be opened.", "note-warn"); return; }
+  applyAnswers(r.data.answers);
+}
+
 function wireSave() {
   const save = $("save-answers"), loadBtn = $("load-answers"), input = $("answers-file");
+  const saveAccount = $("save-account");
+  if (saveAccount) saveAccount.addEventListener("click", saveToAccount);
+  resumeFromAccount();
   if (save) save.addEventListener("click", saveAnswers);
   if (loadBtn && input) {
     loadBtn.addEventListener("click", function () { input.click(); });

@@ -13,6 +13,18 @@ node tests-browser.js   43 checks, a real browser (npm install playwright)
 
 None of this constitutes a complete tax-accuracy audit.
 
+## November: optional accounts
+
+Sign in with email and password, save the walkthrough's answers to an
+account, one plan per tax year, and reopen them from the Account page.
+An account is optional and the site works exactly as before without one.
+
+Supabase is reached only through `/api/auth` and `/api/plans`, so the
+content security policy is unchanged. Row Level Security is the only place
+that decides whose rows a request can touch. Documents are never saved.
+The privacy page now says exactly what an account stores and how to
+delete it.
+
 ## October: the guide, which is what this was always for
 
 Everything up to now has been setup. The questions, the dependency tests,

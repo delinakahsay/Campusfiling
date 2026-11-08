@@ -299,3 +299,39 @@ input[type="text"], input[type="number"], input[type="email"], input[type="passw
 .sample-plan p:last-child { margin-bottom: 0; }
 
 .caption { font-size: 13px; color: var(--muted); margin-top: 10px; }
+
+/* ---------- account page ---------- */
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 15px;
+  color: var(--navy);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.btn-link:hover { color: var(--blue); }
+
+.acct-switch { margin: 14px 0 0; font-size: 15px; }
+
+.acct-switch + .acct-switch { margin-top: 6px; }
+
+.acct-gap { margin-top: 1.4rem; }
+
+.acct-who { color: var(--slate); margin-bottom: 1.4rem; }
+
+.acct-more { margin-top: 2rem; border-top: 1px solid var(--line); padding-top: 1.2rem; }
+
+.acct-more summary { cursor: pointer; font-weight: 500; }
+
+.acct-more[open] summary { margin-bottom: 1rem; }
+
+.plan-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+.field small[hidden] { display: none; }
+
+#plans-body th, #plans-body td { vertical-align: middle; }
