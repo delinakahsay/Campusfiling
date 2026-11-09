@@ -101,7 +101,20 @@
 
   /* ---------- signed in ---------- */
 
+  /* Where to go once signed in, when a gated page sent the student here.
+     Only a same-origin absolute path is honoured. A value beginning "//"
+     or carrying a scheme would turn this into an open redirect, which is
+     worth guarding even though the link is one we write ourselves. */
+  function safeNext() {
+    const raw = new URLSearchParams(location.search).get("next");
+    if (!raw) return null;
+    if (raw.charAt(0) !== "/" || raw.charAt(1) === "/" || raw.indexOf("\\") >= 0) return null;
+    return raw;
+  }
+
   async function signedIn(user) {
+    const next = safeNext();
+    if (next) { location.replace(next); return; }
     $("acct-email").textContent = user.email;
     show("acct-in");
     await loadPlans();
@@ -261,7 +274,10 @@
       signedOut("Your account and every saved plan were deleted.", "note-good");
     });
 
-    if (new URLSearchParams(location.search).get("from") === "save") {
+    if (safeNext()) {
+      setMode("signup");
+      status("The filing tools need an account. Create one and you will be taken straight there.", "");
+    } else if (new URLSearchParams(location.search).get("from") === "save") {
       setMode("signup");
       status("Sign in or create an account, then go back to your plan and save it.", "");
     }

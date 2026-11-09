@@ -85,6 +85,23 @@ async function main() {
   catch (e) { console.log("SKIP browser tests: " + e.message.split("\n")[0]); server.close(); return 0; }
 
   const page = await browser.newPage();
+
+  /* The walkthrough and the estimator are gated behind an account, so a
+     signed-out page would redirect before any of these tests could run.
+     This stub stands in for the signed-in student.
+
+     It is registered on the context rather than the page on purpose: the
+     account tests below register their own page-level /api/auth route and
+     then unroute it, and page.unroute does not touch a context route, so
+     this one survives to serve the tests that come after them. */
+  await page.context().route("**/api/auth", function (route) {
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { email: "student@example.edu", createdAt: null } })
+    });
+  });
+
   const errors = [];
   /* Webfonts come from Google and this runner may have no route to them.
      A missing font is a cosmetic matter, not a fault in the page, so it
@@ -409,6 +426,60 @@ async function main() {
   check("The walkthrough's account features contact nothing offsite", unexpected().length === 0 && offsite.length === 0, unexpected().concat(offsite).join(" | "));
   await page.unroute("**/api/auth");
   await page.unroute("**/api/plans**");
+
+  /* ---------- the account gate on the two tools ----------
+
+     Page-level routes here, so each one overrides the signed-in context
+     stub for the duration of its own check and is removed after. */
+
+  async function withAuth(status, body, fn) {
+    await page.route("**/api/auth", function (route) {
+      route.fulfill({ status: status, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    try { await fn(); } finally { await page.unroute("**/api/auth"); }
+  }
+
+  await withAuth(200, { user: null }, async function () {
+    await page.goto(base + "/app/file.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    check("A signed-out student is sent from the walkthrough to sign-in",
+      page.url().indexOf("/account.html?next=%2Fapp%2Ffile.html") > -1, page.url());
+  });
+
+  await withAuth(200, { user: null }, async function () {
+    await page.goto(base + "/estimate.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    check("A signed-out student is sent from the estimator to sign-in",
+      page.url().indexOf("/account.html?next=%2Festimate.html") > -1, page.url());
+  });
+
+  await withAuth(200, { user: { email: "student@example.edu" } }, async function () {
+    await page.goto(base + "/app/file.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    check("A signed-in student reaches the walkthrough itself",
+      page.url().indexOf("/app/file.html") > -1 && await page.locator("#p0").isVisible(), page.url());
+  });
+
+  /* A failed check must not quietly open the tool, and must not bounce
+     the student to a sign-in page that is equally unreachable. */
+  await withAuth(503, { error: "down" }, async function () {
+    await page.goto(base + "/app/file.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    const stayed = page.url().indexOf("/app/file.html") > -1;
+    const hidden = !(await page.locator("#p0").isVisible());
+    const told = await page.locator("#gate-msg").count() === 1;
+    check("An unreachable account service shuts the tool and says so",
+      stayed && hidden && told, "stayed=" + stayed + " hidden=" + hidden + " told=" + told);
+  });
+
+  /* The reference pages are deliberately not gated. */
+  await withAuth(200, { user: null }, async function () {
+    for (const open of ["/guides/glossary.html", "/deadlines.html", "/privacy.html"]) {
+      await page.goto(base + open, { waitUntil: "networkidle" });
+      await page.waitForTimeout(250);
+      check(open + " stays open without an account", page.url().indexOf(open) > -1, page.url());
+    }
+  });
 
   /* Every other page, checked the same way. */
   for (const p of ["/index.html", "/privacy.html", "/estimate.html", "/faq.html",

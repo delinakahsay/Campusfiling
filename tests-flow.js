@@ -86,6 +86,17 @@ async function main() {
   catch (e) { console.log("SKIP flow tests: no browser available."); server.close(); return 0; }
 
   const page = await browser.newPage();
+
+  /* The walkthrough now requires an account, so without this the page
+     would redirect to sign-in before the flow under test begins. */
+  await page.context().route("**/api/auth", function (route) {
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { email: "student@example.edu", createdAt: null } })
+    });
+  });
+
   let pass = 0, fail = 0;
   function check(name, ok, detail) {
     if (ok) { console.log("PASS " + name); pass++; }
