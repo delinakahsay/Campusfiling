@@ -70,10 +70,23 @@
       <li>Federal Trade Commission filings in the matter of Intuit, for documentation of free-tier practices</li>
     </ul>
 
+    <h2>What the data showed</h2>
+    <p>The finding that shaped the product came from the IRS ZIP code file for tax year 2022, read at the lowest income band, the one nearly every filing student sits in. We expected to find students paying preparers for work they could do free. The opposite is true.</p>
+    <ul>
+      <li>In ZIP codes built around large universities, <strong>68% of filers earning under $25,000 used no paid preparer and no volunteer clinic</strong>. Nationally in the same income band that figure is 48%.</li>
+      <li>Those students pay a preparer at 28.6%, well under the 49.3% national rate for the band. They are not choosing badly between paid options, they are working alone.</li>
+      <li>Free volunteer clinics reached 3.5% of them. Nationally, VITA and TCE prepared 2.3 million returns against 42.9 million filed in the band.</li>
+      <li>Education credits appear on 8.0% of low-income returns in campus ZIP codes, against 2.9% nationally.</li>
+      <li>The average refund in the band is $927 nationally and $830 in campus ZIP codes, which is the sum at stake per student.</li>
+    </ul>
+    <p>That is the gap this product fills. Not cheaper preparation, but guidance for people who are already filing by themselves.</p>
+    <p style="font-size:15px;color:var(--slate)">Method: national figures are built from the state-total rows of the SOI file rather than by summing ZIP codes, because small ZIP-level cells are suppressed and summing them undercounts. The campus figure pools 18 ZIP codes containing large universities, each with at least 1,000 returns in the band. Column meanings were checked against published national totals before use: the paid-preparer share resolves to 53.1% against the IRS's own reported figure of about 53%, and the earned income credit to 23.5 million returns. A campus ZIP code captures everyone who files from that address, not students alone, which is why the comparison is drawn against the same income band nationally rather than against the general population.</p>
+
     <h2>Scope decisions worth defending</h2>
     <p>Two choices were made deliberately and will look like gaps if not explained.</p>
     <p>The walkthrough ends in a step-by-step worksheet keyed to the filing product the student chose, naming the screen to open and the figure to enter at each step. It deliberately names screens and schedules rather than numbered form lines, because the current year's Form 1040 is not published until December and state forms renumber constantly. The one exception is a reference that has been stable since the 2022 redesign, Schedule 1 line 8r for taxable scholarship money, which is named because students otherwise never find it.</p>
-    <p>The current build collects no personally identifying information and stores nothing beyond the open tab. Documents are read locally and never transmitted. The account feature is scoped for a later phase with a schema designed first and synthetic data used for demonstration.</p>
+    <p>The build asks nothing about who a student is beyond the email address an optional account needs. There is no field for a Social Security number, a bank account, an employer, an address or a school, so there is nothing of that kind to store. Documents are read on the device and are never written anywhere, with or without an account.</p>
+    <p>An account is optional and stores one thing: the walkthrough answers a student chooses to save, one plan per tax year, so a prior year can be reopened rather than retyped. It exists because the institutional licence model requires it, since a university paying per enrolled student needs each student to have a login before there is anything to license. Access is enforced by Row Level Security in the database rather than by this site's code, so a mistake in the site cannot show one student another student's plan. For the capstone demonstration we use practice figures rather than real student income.</p>
   </div>
 
   <div>
@@ -84,7 +97,7 @@
     <div class="card" style="margin-top:14px">
       <h3>Stack</h3>
       <p>Static HTML, CSS, and vanilla JavaScript with no build step or framework dependency. Every tax figure resolves from a single constants module so annual updates touch one file.</p>
-      <p>Phase two adds authentication and a Postgres schema for year over year document storage.</p>
+      <p>Optional accounts run on Supabase Postgres, reached only from this site's own serverless functions, with Row Level Security enforcing per-student access in the database itself.</p>
     </div>
     <div class="card" style="margin-top:14px">
       <h3>Accuracy</h3>
