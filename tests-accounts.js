@@ -11,6 +11,11 @@
 const assert = require("assert");
 const path = require("path");
 
+/* The assistant endpoint checks for a key before it builds a request,
+   and returns 503 without one. A placeholder lets these tests reach the
+   stubbed fetch below; no real call is ever made. */
+process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "test-key-not-real";
+
 let calls = [];
 let replies = [];
 
@@ -19,7 +24,10 @@ global.fetch = async function (url, init) {
   const next = replies.shift() || { status: 500, body: {} };
   return {
     status: next.status,
-    text: async function () { return next.body === undefined ? "" : JSON.stringify(next.body); }
+    /* _supabase.js reads text(); _anthropic.js reads ok and json(). */
+    ok: next.status >= 200 && next.status < 300,
+    text: async function () { return next.body === undefined ? "" : JSON.stringify(next.body); },
+    json: async function () { return next.body === undefined ? {} : next.body; }
   };
 };
 
@@ -292,6 +300,93 @@ test("neither endpoint leaks why it refused", async function () {
   const r = res();
   await readDoc(req("POST", { body: { text: "x" } }), r);
   assert.ok(!/token|cookie|supabase/i.test(JSON.stringify(r.payload)), r.payload.error);
+});
+
+/* ---------- the walkthrough assistant ---------- */
+
+const ask = require(path.join(__dirname, "api", "ask.js"));
+
+function asked(opts) {
+  opts = opts || {};
+  return req("POST", {
+    headers: Object.assign({ origin: "https://campusfiling.vercel.app" }, opts.headers || {}),
+    body: opts.body
+  });
+}
+
+test("the assistant refuses a caller with no session", async function () {
+  const r = res();
+  await ask(asked({ body: { question: "What is a W-2?", section: 4 } }), r);
+  assert.strictEqual(r.statusCode, 401);
+  assert.strictEqual(calls.length, 0, "no upstream call for an anonymous caller");
+});
+
+test("the assistant refuses a request from another site", async function () {
+  const r = res();
+  await ask(req("POST", {
+    headers: { origin: "https://example.com", cookie: "cf_at=" + jwt(3600) },
+    body: { question: "What is a W-2?" }
+  }), r);
+  assert.strictEqual(r.statusCode, 403);
+  assert.strictEqual(calls.length, 0);
+});
+
+test("an overlong question is refused before it reaches the model", async function () {
+  const r = res();
+  await ask(asked({
+    headers: { cookie: "cf_at=" + jwt(3600) },
+    body: { question: "x".repeat(501) }
+  }), r);
+  assert.strictEqual(r.statusCode, 413);
+  assert.strictEqual(calls.length, 0);
+});
+
+/* The walkthrough has no field for any of these, so neither the prompt
+   nor the context may carry one even if a crafted request supplies it. */
+test("nothing identifying is forwarded, whatever the caller puts in context", async function () {
+  replies = [{ status: 200, body: { content: [{ type: "tool_use", name: "answer",
+    input: { reply: "Box 1 holds your wages.", in_scope: true } }] } }];
+  const r = res();
+  await ask(asked({
+    headers: { cookie: "cf_at=" + jwt(3600) },
+    body: {
+      question: "Where are my wages?",
+      section: 5,
+      context: { income: 18500, ssn: "123-45-6789", employer: "GW Dining",
+                 address: "2121 I St NW", name: "Delina Kahsay" }
+    }
+  }), r);
+  assert.strictEqual(r.statusCode, 200);
+  const sent = JSON.stringify(calls[0].body);
+  ["123-45-6789", "GW Dining", "2121 I St", "Delina"].forEach(function (leak) {
+    assert.ok(sent.indexOf(leak) === -1, "forwarded " + leak);
+  });
+  assert.ok(sent.indexOf("18500") > -1, "the figures it is meant to use should go through");
+});
+
+test("an out-of-scope question comes back as a refusal, not an answer", async function () {
+  replies = [{ status: 200, body: { content: [{ type: "tool_use", name: "answer",
+    input: { reply: "", in_scope: false, refusal: "I only help with filing taxes as a student." } }] } }];
+  const r = res();
+  await ask(asked({
+    headers: { cookie: "cf_at=" + jwt(3600) },
+    body: { question: "Write me a poem", section: 2 }
+  }), r);
+  assert.strictEqual(r.statusCode, 200);
+  assert.strictEqual(r.payload.inScope, false);
+  assert.ok(/only help with filing/i.test(r.payload.reply));
+});
+
+test("a section outside one to nine falls back rather than indexing off the end", async function () {
+  replies = [{ status: 200, body: { content: [{ type: "tool_use", name: "answer",
+    input: { reply: "Start at the beginning.", in_scope: true } }] } }];
+  const r = res();
+  await ask(asked({
+    headers: { cookie: "cf_at=" + jwt(3600) },
+    body: { question: "Where do I start?", section: 99 }
+  }), r);
+  assert.strictEqual(r.statusCode, 200);
+  assert.ok(JSON.stringify(calls[0].body).indexOf("Section 1 of 9") > -1);
 });
 
 /* ---------- who may hold an account ---------- */

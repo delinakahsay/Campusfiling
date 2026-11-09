@@ -76,7 +76,7 @@ node tests-extract.js   19 checks, document reading
 node tests-assisted.js  21 checks, reconciling the two readers
 node tests-ui.js        13 checks, walkthrough interactions
 node tests-flow.js      24 checks, upload to applied to guided, API stubbed
-node tests-accounts.js  22 checks, accounts and saved plans, Supabase stubbed
+node tests-accounts.js  36 checks, accounts and saved plans, Supabase stubbed
 node tests-browser.js   69 checks, needs: npm install playwright
 ```
 
