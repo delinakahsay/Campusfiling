@@ -274,13 +274,6 @@
       signedOut("Your account and every saved plan were deleted.", "note-good");
     });
 
-    if (safeNext()) {
-      setMode("signup");
-      status("The filing tools need an account. Create one and you will be taken straight there.", "");
-    } else if (new URLSearchParams(location.search).get("from") === "save") {
-      setMode("signup");
-      status("Sign in or create an account, then go back to your plan and save it.", "");
-    }
 
     const params = fragment();
     if (params && params.get("error")) {
@@ -302,6 +295,19 @@
     if (me.ok && me.data.user) { await signedIn(me.data.user); return; }
     if (!me.ok) { signedOut(me.data.error || "The account service did not respond. Try again in a moment.", "note-stop"); return; }
     signedOut();
+
+    /* Why they are here, if a gated tool sent them. This runs after
+       signedOut() rather than before, because signedOut resets the form
+       to sign-in and clears the message, which wiped both. Someone
+       arriving from a gated tool usually has no account yet, so the
+       form opens on create rather than sign in. */
+    if (safeNext()) {
+      setMode("signup");
+      status("The filing tools need an account. Create one and you will be taken straight there.", "");
+    } else if (new URLSearchParams(location.search).get("from") === "save") {
+      setMode("signup");
+      status("Sign in or create an account, then go back to your plan and save it.", "");
+    }
   }
 
   document.addEventListener("DOMContentLoaded", init);

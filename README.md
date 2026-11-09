@@ -77,7 +77,7 @@ node tests-assisted.js  21 checks, reconciling the two readers
 node tests-ui.js        13 checks, walkthrough interactions
 node tests-flow.js      24 checks, upload to applied to guided, API stubbed
 node tests-accounts.js  22 checks, accounts and saved plans, Supabase stubbed
-node tests-browser.js   60 checks, needs: npm install playwright
+node tests-browser.js   61 checks, needs: npm install playwright
 ```
 
 `tests-browser.js` is the one that matters most, and it exists because the

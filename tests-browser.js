@@ -472,6 +472,19 @@ async function main() {
       stayed && hidden && told, "stayed=" + stayed + " hidden=" + hidden + " told=" + told);
   });
 
+  /* Arriving from a gated tool, the form should open on create rather
+     than sign in. It regressed once because signedOut() resets the mode
+     and ran after the parameter was read. */
+  await withAuth(200, { user: null }, async function () {
+    await page.goto(base + "/account.html?next=%2Fapp%2Ffile.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(500);
+    const button = (await page.locator("#acct-out button[type=submit]").first().innerText()).toLowerCase();
+    const said = (await page.locator("#acct-status").innerText()).toLowerCase();
+    check("A student sent here by a gated tool lands on create, not sign in",
+      button.indexOf("create") > -1 && said.indexOf("need an account") > -1,
+      "button=" + button + " status=" + said);
+  });
+
   /* The reference pages are deliberately not gated. */
   await withAuth(200, { user: null }, async function () {
     for (const open of ["/guides/glossary.html", "/deadlines.html", "/privacy.html"]) {
