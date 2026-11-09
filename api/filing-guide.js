@@ -17,6 +17,7 @@
    those. Nothing is stored at either end. */
 
 const { callAnthropic } = require("./_anthropic.js");
+const sb = require("./_supabase.js");
 
 const MAX_OUTPUT_TOKENS = 8000;
 
@@ -198,6 +199,11 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  /* Spends Anthropic credits, so it is closed to strangers for the same
+     reason as the document reader. */
+  const token = await sb.requireSession(req, res);
+  if (!token) return;
+
   let body = req.body;
   if (typeof body === "string") {
     try { body = JSON.parse(body); } catch (e) { body = null; }
@@ -253,6 +259,8 @@ module.exports = async function handler(req, res) {
     res.status(502).json({ error: "The guide came back empty. Try again." });
     return;
   }
+
+  await sb.recordDocumentRead(token, "guide");
 
   res.setHeader("Cache-Control", "no-store");
   res.status(200).json({

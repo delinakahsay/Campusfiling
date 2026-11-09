@@ -72,6 +72,17 @@ async function call(path, options) {
 function authMessage(result) {
   const d = result.data || {};
   const code = d.error_code || d.code || d.error || "";
+
+  /* A database trigger refuses signups from outside a GW domain. Its
+     message is already written for a student to read, so pass it through
+     rather than letting it fall to the generic failure at the bottom,
+     which would tell them to check what they entered when the address is
+     fine and simply not eligible. */
+  const text = [d.msg, d.message, d.error_description, d.error]
+    .filter(function (v) { return typeof v === "string"; }).join(" ");
+  if (text.indexOf("limited to GW email addresses") > -1) {
+    return "Campus Filing accounts are limited to GW email addresses. Use your @gwu.edu or @gwmail.gwu.edu address.";
+  }
   const MESSAGES = {
     invalid_credentials: "That email and password do not match an account.",
     invalid_grant: "That email and password do not match an account.",
@@ -190,5 +201,34 @@ function send(res, status, body) {
 
 module.exports = {
   call, authMessage, sessionToken, setSession, clearSession, readCookies,
-  sameOrigin, siteOrigin, parseBody, send, secondsLeft, supabaseUrl, publishableKey
+  sameOrigin, siteOrigin, parseBody, send, secondsLeft, supabaseUrl, publishableKey,
+  requireSession, recordDocumentRead
 };
+
+/* The two endpoints that call Anthropic are the only ones that cost real
+   money per request, which makes them the only ones worth shutting to
+   strangers. Returns the caller's token, or sends the refusal and returns
+   null, in which case the handler should return immediately. */
+async function requireSession(req, res) {
+  const token = await sessionToken(req, res);
+  if (!token) {
+    send(res, 401, { error: "Sign in to use this.", signin: true });
+    return null;
+  }
+  return token;
+}
+
+/* One row per read, for the per-institution counts. It records that a
+   read happened and nothing about what the document said, so the
+   reporting table never becomes a second copy of anyone's tax data.
+   Failure here is ignored on purpose: a student's document should not
+   fail to be read because a counter could not be written. */
+async function recordDocumentRead(token, kind) {
+  try {
+    await call("/rest/v1/document_reads", {
+      method: "POST", token: token, body: { kind: kind }
+    });
+  } catch (e) {
+    console.error("document_reads insert failed:", e && e.message);
+  }
+}

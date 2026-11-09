@@ -17,6 +17,7 @@
    neither is applied. See reconcile() in wizard.js. */
 
 const { callAnthropic } = require("./_anthropic.js");
+const sb = require("./_supabase.js");
 
 const MAX_TEXT_CHARS = 60000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -127,6 +128,13 @@ function bad(res, status, message) {
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return bad(res, 405, "POST only.");
 
+  /* This call spends Anthropic credits, so it is not open to strangers.
+     Everything else about the request is unchanged: the token is used to
+     establish that someone is signed in and to attribute the read, never
+     to look up anything about them. */
+  const token = await sb.requireSession(req, res);
+  if (!token) return;
+
   let body = req.body;
   if (typeof body === "string") {
     try { body = JSON.parse(body); } catch (e) { return bad(res, 400, "Body was not JSON."); }
@@ -194,6 +202,8 @@ module.exports = async function handler(req, res) {
       evidence: typeof f.evidence === "string" ? f.evidence.slice(0, 200) : ""
     };
   });
+
+  await sb.recordDocumentRead(token, "assisted");
 
   res.setHeader("Cache-Control", "no-store");
   res.status(200).json({

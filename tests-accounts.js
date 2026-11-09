@@ -268,6 +268,80 @@ test("the service role key is nowhere in the API code", async function () {
   });
 });
 
+/* ---------- the endpoints that spend money ---------- */
+
+const readDoc = require(path.join(__dirname, "api", "read-document.js"));
+const guide = require(path.join(__dirname, "api", "filing-guide.js"));
+
+test("the document reader refuses a caller with no session", async function () {
+  const r = res();
+  await readDoc(req("POST", { body: { text: "Wages, tips 12000" } }), r);
+  assert.strictEqual(r.statusCode, 401, "anonymous callers must not reach Anthropic");
+  assert.strictEqual(r.payload.signin, true);
+  assert.strictEqual(calls.length, 0, "no upstream call may be made for an anonymous caller");
+});
+
+test("the filing guide refuses a caller with no session", async function () {
+  const r = res();
+  await guide(req("POST", { body: { situation: { wages: 1 }, software: "freetaxusa" } }), r);
+  assert.strictEqual(r.statusCode, 401);
+  assert.strictEqual(calls.length, 0);
+});
+
+test("neither endpoint leaks why it refused", async function () {
+  const r = res();
+  await readDoc(req("POST", { body: { text: "x" } }), r);
+  assert.ok(!/token|cookie|supabase/i.test(JSON.stringify(r.payload)), r.payload.error);
+});
+
+/* ---------- who may hold an account ---------- */
+
+test("a non-GW signup is refused in words a student can act on", async function () {
+  replies = [{ status: 500, body: { msg: 'Database error saving new user: Campus Filing accounts are limited to GW email addresses.' } }];
+  const r = res();
+  await auth(req("POST", { body: { action: "signup", email: "someone@gmail.com", password: "longenough" } }), r);
+  assert.ok(/limited to GW email addresses/.test(r.payload.error), r.payload.error);
+  assert.ok(/gwmail\.gwu\.edu/.test(r.payload.error), "it should name the address to use");
+});
+
+test("a GW signup is not blocked by the client", async function () {
+  replies = [{ status: 200, body: { access_token: jwt(3600), refresh_token: "r1", expires_in: 3600, user: { email: "d@gwmail.gwu.edu" } } }];
+  const r = res();
+  await auth(req("POST", { body: { action: "signup", email: "D@gwmail.gwu.edu", password: "longenough" } }), r);
+  assert.strictEqual(r.statusCode, 200);
+  assert.strictEqual(r.payload.user.email, "d@gwmail.gwu.edu");
+});
+
+/* The staff list lives in the database, not here, so the API must not
+   second-guess an address it does not recognise. Supabase decides. */
+test("the API does not pre-reject an address that may be an invited staff account", async function () {
+  replies = [{ status: 200, body: { access_token: jwt(3600), refresh_token: "r1", expires_in: 3600, user: { email: "kahdelina@gmail.com" } } }];
+  const r = res();
+  await auth(req("POST", { body: { action: "signup", email: "kahdelina@gmail.com", password: "longenough" } }), r);
+  assert.strictEqual(r.statusCode, 200, "a staff invite must be allowed through to the database");
+});
+
+/* ---------- the reporting boundary ---------- */
+
+test("the schema never grants an administrator a read on saved_plans", function () {
+  const fs = require("fs");
+  const roles = fs.readFileSync(path.join(__dirname, "supabase", "roles.sql"), "utf8");
+  assert.ok(!/grant[^;]*\bon\s+public\.saved_plans\b[^;]*to[^;]*(university_admin|tax_operations)/i.test(roles),
+    "reporting must go through the aggregate function, never a row read");
+  assert.ok(/institution_usage\(\)/.test(roles), "the aggregate function must exist");
+  assert.ok(/raise exception 'not permitted'/.test(roles), "it must refuse a student caller");
+});
+
+test("the signup trigger and the profile trigger both pin search_path", function () {
+  const fs = require("fs");
+  const roles = fs.readFileSync(path.join(__dirname, "supabase", "roles.sql"), "utf8");
+  const definers = roles.match(/security definer[^$]*/gi) || [];
+  assert.ok(definers.length >= 4, "expected several definer functions, found " + definers.length);
+  definers.forEach(function (d) {
+    assert.ok(/set search_path = ''/.test(d), "a definer function is missing search_path: " + d.slice(0, 60));
+  });
+});
+
 (async function () {
   for (const t of tests) {
     calls = []; replies = [];
