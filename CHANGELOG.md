@@ -8,12 +8,39 @@ node tests-extract.js   19 checks, document reading
 node tests-assisted.js  21 checks, reconciling the two readers
 node tests-ui.js        13 checks, walkthrough interactions against a stub DOM
 node tests-flow.js      24 checks, upload to applied to guided, API stubbed
-node tests-browser.js   43 checks, a real browser (npm install playwright)
+node tests-accounts.js  22 checks, accounts and saved plans, Supabase stubbed
+node tests-browser.js   61 checks, a real browser (npm install playwright)
 ```
 
 None of this constitutes a complete tax-accuracy audit.
 
-## November: optional accounts
+## November: the tools require an account
+
+The filing walkthrough and the refund estimator are now behind a student
+account. The reference material is not: the guides, the deadline
+calendar, the glossary, the FAQ and the privacy page stay open to anyone,
+because gating public tax information helps nobody.
+
+This follows from the licence model rather than from a security need.
+The licence is priced per enrolled student, so a university has to be
+able to tell its own students apart from anyone else's, and that needs a
+login. Worth being clear in the write-up: the walkthrough is arithmetic
+in the browser, so there is no server resource behind the door and the
+gate is a product rule, not a security boundary. Saved answers, which do
+need protecting, are still guarded by Row Level Security.
+
+A signed-out visitor is sent to the account page with a `next` parameter
+and returned afterwards. Only a same-origin absolute path is honoured,
+so the parameter cannot be bent into an open redirect. If the account
+service cannot be reached, the tool stays shut and says so, rather than
+opening on a failed check or bouncing the student to a sign-in page that
+is equally unreachable.
+
+Known gap: accounts carry no institutional dimension yet. Nothing in the
+schema ties a student to a university, so the system cannot yet report
+usage per institution, which is what a site licence would be sold on.
+
+## November: optional accounts, superseded above
 
 Sign in with email and password, save the walkthrough's answers to an
 account, one plan per tax year, and reopen them from the Account page.
