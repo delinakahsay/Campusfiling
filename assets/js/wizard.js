@@ -1011,10 +1011,12 @@ function loadDemoFigures() {
 
 /* ---------- saving and resuming ----------
 
-   Nothing is kept between visits, which is the point, but it also means a
-   closed tab throws away twenty minutes of work. So answers can be
-   written to a file the person keeps themselves. No account, no server,
-   no browser storage: a file on their disk, which they can delete.
+   Nothing is kept as the student works, so a closed tab would otherwise
+   throw away twenty minutes. Two ways out of that: save to the account,
+   which keeps one plan per tax year, or save to a file the student keeps
+   themselves, which touches no server at all and which they can delete.
+   The file route stays even though accounts exist, because it is the
+   only one that leaves nothing anywhere.
 
    Uploaded documents are deliberately not included. A saved file would
    then contain the contents of a W-2, which is exactly the thing this
