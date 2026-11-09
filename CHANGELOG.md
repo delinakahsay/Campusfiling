@@ -433,5 +433,10 @@ Schedule 1 line 8r. See `README.md`.
    in the plan.
 3. The kiddie tax on large unearned income is not modelled.
 4. Education credits are described but not netted into the refund estimate.
-5. `about.html` lists data sources without linked datasets or findings. That
-   is the analysis component and it is genuinely not done yet.
+5. Accounts carry no institutional dimension. Nothing ties a student to a
+   university, so usage cannot be reported per institution, which is what
+   a per-student site licence would actually be sold on.
+
+Closed since this list was written: `about.html` now carries the SOI
+finding with its method and limitations, so the analysis component is
+done.
