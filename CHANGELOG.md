@@ -9,7 +9,7 @@ node tests-assisted.js  21 checks, reconciling the two readers
 node tests-ui.js        13 checks, walkthrough interactions against a stub DOM
 node tests-flow.js      24 checks, upload to applied to guided, API stubbed
 node tests-accounts.js  22 checks, accounts and saved plans, Supabase stubbed
-node tests-browser.js   67 checks, a real browser (npm install playwright)
+node tests-browser.js   69 checks, a real browser (npm install playwright)
 ```
 
 None of this constitutes a complete tax-accuracy audit.

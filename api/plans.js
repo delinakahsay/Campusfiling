@@ -26,6 +26,38 @@ function yearFrom(value) {
   return String(n) === String(value).trim() && n >= 2020 && n <= 2100 ? n : null;
 }
 
+/* What the plan concluded, captured by the walkthrough when the student
+   saved it. Validated to a fixed shape rather than stored as whatever
+   arrived, because it is rendered straight onto a page: a string that
+   got here by another route should not be able to put anything into the
+   account view. Every field is optional, so an older save without a
+   summary is not an error, it just shows less. */
+function cleanSummary(s) {
+  if (!s || typeof s !== "object" || Array.isArray(s)) return null;
+  const str = function (v, max) {
+    return typeof v === "string" && v.length <= (max || 160) ? v : null;
+  };
+  const list = function (v, max) {
+    return Array.isArray(v)
+      ? v.slice(0, 12).filter(function (x) { return str(x, max || 200); })
+      : [];
+  };
+  const out = {
+    refund: typeof s.refund === "number" && isFinite(s.refund) ? Math.round(s.refund) : null,
+    mustFile: typeof s.mustFile === "boolean" ? s.mustFile : null,
+    dependency: str(s.dependency, 60),
+    income: typeof s.income === "number" && isFinite(s.income) ? Math.round(s.income) : null,
+    standardDeduction: typeof s.standardDeduction === "number" && isFinite(s.standardDeduction)
+      ? Math.round(s.standardDeduction) : null,
+    returns: str(s.returns, 160),
+    software: str(s.software, 60),
+    educationCredit: str(s.educationCredit, 60),
+    steps: list(s.steps, 220),
+    documents: list(s.documents, 120)
+  };
+  return JSON.stringify(out).length <= 6000 ? out : null;
+}
+
 /* The same shape answersToObject() in wizard.js writes, and nothing else. */
 function cleanAnswers(a) {
   if (!a || typeof a !== "object" || Array.isArray(a)) return null;
@@ -58,7 +90,7 @@ module.exports = async function handler(req, res) {
   const query = req.query || {};
 
   if (req.method === "GET" && query.year === undefined) {
-    const r = await sb.call("/rest/v1/saved_plans?select=tax_year,updated_at&order=tax_year.desc", { token: token });
+    const r = await sb.call("/rest/v1/saved_plans?select=tax_year,updated_at,summary&order=tax_year.desc", { token: token });
     if (r.status !== 200) return failed(res, r);
     return sb.send(res, 200, { plans: (r.data || []).map(function (p) {
       return { taxYear: p.tax_year, updatedAt: p.updated_at };
@@ -70,10 +102,10 @@ module.exports = async function handler(req, res) {
     if (!year) return sb.send(res, 400, { error: "Name a tax year." });
 
     if (req.method === "GET") {
-      const r = await sb.call("/rest/v1/saved_plans?select=answers,updated_at&tax_year=eq." + year, { token: token });
+      const r = await sb.call("/rest/v1/saved_plans?select=answers,updated_at,summary&tax_year=eq." + year, { token: token });
       if (r.status !== 200) return failed(res, r);
       if (!r.data || !r.data.length) return sb.send(res, 404, { error: "There is no saved plan for " + year + "." });
-      return sb.send(res, 200, { answers: r.data[0].answers, updatedAt: r.data[0].updated_at });
+      return sb.send(res, 200, { answers: r.data[0].answers, summary: r.data[0].summary || null, updatedAt: r.data[0].updated_at });
     }
 
     const r = await sb.call("/rest/v1/saved_plans?tax_year=eq." + year, {
@@ -93,7 +125,7 @@ module.exports = async function handler(req, res) {
   const r = await sb.call("/rest/v1/saved_plans?on_conflict=user_id,tax_year", {
     method: "POST", token: token,
     headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-    body: { tax_year: answers.taxYear, answers: answers }
+    body: { tax_year: answers.taxYear, answers: answers, summary: cleanSummary(body && body.summary) }
   });
   if (r.status !== 201 && r.status !== 200) return failed(res, r);
   const row = Array.isArray(r.data) ? r.data[0] : r.data;

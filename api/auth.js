@@ -47,10 +47,11 @@ function returnUrl(req) {
 async function roleFor(token) {
   const r = await sb.call("/rest/v1/rpc/my_role", { method: "POST", token: token, body: {} });
   const row = Array.isArray(r.data) ? r.data[0] : r.data;
-  if (r.status !== 200 || !row) return { role: "student", institution: null };
+  if (r.status !== 200 || !row) return { role: "student", institution: null, name: null };
   return {
     role: typeof row.role === "string" ? row.role : "student",
-    institution: typeof row.institution === "string" ? row.institution : null
+    institution: typeof row.institution === "string" ? row.institution : null,
+    name: typeof row.full_name === "string" ? row.full_name : null
   };
 }
 
@@ -63,6 +64,7 @@ async function whoami(req, res) {
     const extra = await roleFor(token);
     who.role = extra.role;
     who.institution = extra.institution;
+    who.name = extra.name;
     return sb.send(res, 200, { user: who });
   }
   if (r.status === 401 || r.status === 403 || r.status === 404) {
@@ -78,8 +80,17 @@ const ACTIONS = {
     if (!validEmail(email)) return sb.send(res, 400, { error: "Enter a valid email address." });
     if (!validPassword(body.password)) return sb.send(res, 400, { error: "Choose a password of at least " + MIN_PASSWORD + " characters." });
 
+    /* The name is carried as sign-up metadata, which the profile trigger
+       reads when it creates the row. Optional: a student who leaves it
+       blank gets a working account and initials drawn from their
+       address instead. */
+    const name = String(body.name || "").trim().slice(0, 80);
+
     const r = await sb.call("/auth/v1/signup?redirect_to=" + returnUrl(req), {
-      method: "POST", body: { email: email, password: body.password }
+      method: "POST",
+      body: name
+        ? { email: email, password: body.password, data: { full_name: name } }
+        : { email: email, password: body.password }
     });
     if (r.status !== 200) return sb.send(res, r.status === 0 ? 503 : 400, { error: sb.authMessage(r) });
 
@@ -105,6 +116,26 @@ const ACTIONS = {
     }
     sb.setSession(res, r.data);
     return sb.send(res, 200, { user: publicUser(r.data.user) });
+  },
+
+  /* A student correcting their own name. The database function decides
+     whose row that is, so there is no user id to pass and none to get
+     wrong. The role and institution are not editable here by design: a
+     student who could change either would be granting themselves
+     access. */
+  async name(req, res, body) {
+    if (!sb.sameOrigin(req)) return sb.send(res, 403, { error: "That request did not come from this site." });
+    const token = await sb.requireSession(req, res);
+    if (!token) return;
+
+    const value = String(body.name || "").trim().slice(0, 80);
+    const r = await sb.call("/rest/v1/rpc/set_my_name", {
+      method: "POST", token: token, body: { new_name: value }
+    });
+    if (r.status !== 200) {
+      return sb.send(res, r.status === 0 ? 503 : 400, { error: "That name could not be saved." });
+    }
+    return sb.send(res, 200, { name: value || null });
   },
 
   async signout(req, res) {

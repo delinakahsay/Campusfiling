@@ -80,9 +80,32 @@
     ]
   };
 
+  /* "Delina Kahsay" gives DK. One word gives its first letter. With no
+     name at all the address stands in, so the header never shows an
+     empty circle while someone is signed in. */
+  CF.initials = function (user) {
+    var name = (user && user.name ? String(user.name) : "").trim();
+    if (name) {
+      var words = name.split(/\s+/).filter(Boolean);
+      var first = words[0].charAt(0);
+      var last = words.length > 1 ? words[words.length - 1].charAt(0) : "";
+      return (first + last).toUpperCase();
+    }
+    var email = (user && user.email) || "";
+    return (email.charAt(0) || "?").toUpperCase();
+  };
+
   function sessionSlot(user) {
     var slot = el("span", "nav-session");
-    slot.appendChild(el("span", "nav-who", user.email));
+
+    var who = el("a", "nav-initials", CF.initials(user));
+    who.setAttribute("href", base + "account.html");
+    /* The circle alone would read as decoration to a screen reader, and
+       the initials alone would not say whose they are. */
+    who.setAttribute("aria-label", "Your account, signed in as " + (user.name || user.email));
+    who.setAttribute("title", user.name ? user.name + " (" + user.email + ")" : user.email);
+    slot.appendChild(who);
+
     var out = el("button", "nav-signout", "Sign out");
     out.type = "button";
     out.addEventListener("click", signOut);

@@ -56,6 +56,7 @@
     $("auth-switch").textContent = signup ? "Already have an account? Sign in" : "New here? Create an account";
     $("auth-password").autocomplete = signup ? "new-password" : "current-password";
     $("auth-password-help").hidden = !signup;
+    $("auth-name-field").hidden = !signup;
     $("auth-err").textContent = "";
   }
 
@@ -70,7 +71,9 @@
 
     const button = $("auth-submit");
     busy(button, true, mode === "signup" ? "Creating account" : "Signing in");
-    const r = await api("/api/auth", { method: "POST", body: { action: mode, email: email, password: password } });
+    const payload = { action: mode, email: email, password: password };
+    if (mode === "signup") payload.name = $("auth-name").value.trim();
+    const r = await api("/api/auth", { method: "POST", body: payload });
     busy(button, false);
 
     if (!r.ok) { err.textContent = r.data.error || "That did not work. Try again."; return; }
@@ -125,6 +128,9 @@
       return;
     }
     $("acct-email").textContent = user.email;
+    $("info-name").textContent = user.name || "Not set";
+    $("info-institution").textContent = user.institution || "Not recognised";
+    $("name-value").value = user.name || "";
     show("acct-in");
     await loadPlans();
   }
@@ -160,11 +166,21 @@
       const actions = document.createElement("td");
       const wrap = document.createElement("div");
       wrap.className = "plan-actions";
+      /* Open goes to the summary, not back into the nine sections. Most
+         returns here are to re-read what the plan said, not to change an
+         answer, and the summary offers the walkthrough as its own next
+         step for the times it is. */
       const open = document.createElement("a");
       open.className = "btn btn-sm";
-      open.href = "app/file.html?resume=" + encodeURIComponent(p.taxYear);
+      open.href = "plan.html?year=" + encodeURIComponent(p.taxYear);
       open.textContent = "Open";
       open.setAttribute("aria-label", "Open your " + p.taxYear + " plan");
+
+      const edit = document.createElement("a");
+      edit.className = "btn btn-ghost btn-sm";
+      edit.href = "app/file.html?resume=" + encodeURIComponent(p.taxYear);
+      edit.textContent = "Edit answers";
+      edit.setAttribute("aria-label", "Edit the answers behind your " + p.taxYear + " plan");
       const del = document.createElement("button");
       del.type = "button";
       del.className = "btn btn-ghost btn-sm";
@@ -179,6 +195,7 @@
         await loadPlans();
       });
       wrap.appendChild(open);
+      wrap.appendChild(edit);
       wrap.appendChild(del);
       actions.appendChild(wrap);
 
@@ -261,6 +278,21 @@
     });
     $("forgot-form").addEventListener("submit", submitForgot);
     $("signout").addEventListener("click", signOut);
+
+    $("name-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const err = $("name-err");
+      err.textContent = "";
+      const button = $("name-submit");
+      busy(button, true, "Saving");
+      const r = await api("/api/auth", {
+        method: "POST", body: { action: "name", name: $("name-value").value.trim() }
+      });
+      busy(button, false);
+      if (!r.ok) { err.textContent = r.data.error || "That did not work."; return; }
+      $("info-name").textContent = r.data.name || "Not set";
+      status("Name saved. Your initials update when the page reloads.", "note-good");
+    });
     $("change-form").addEventListener("submit", function (e) {
       e.preventDefault();
       submitPassword("change-form", "change-password", "change-submit", "change-err", function () {

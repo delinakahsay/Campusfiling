@@ -395,7 +395,14 @@ async function main() {
   await page.waitForSelector("#acct-in:not([hidden])");
   check("Signing in shows the email and the saved plans",
     (await page.textContent("#acct-email")) === "test@example.edu" &&
-    (await page.getAttribute("#plans-body a", "href")) === "app/file.html?resume=2026");
+    (await page.getAttribute("#plans-body a", "href")) === "plan.html?year=2026");
+
+  /* Open goes to the summary; editing the answers is its own link, so a
+     student returning to re-read the plan is not dropped into section one. */
+  check("A saved plan offers the summary first and the walkthrough second",
+    (await page.getAttribute("#plans-body a:nth-of-type(1)", "href")) === "plan.html?year=2026" &&
+    (await page.getAttribute("#plans-body a:nth-of-type(2)", "href")) === "app/file.html?resume=2026",
+    (await page.$$eval("#plans-body a", function (as) { return as.map(function (a) { return a.getAttribute("href"); }).join(" , "); })));
   check("The account page contacts nothing offsite", unexpected().length === 0 && offsite.length === 0, unexpected().concat(offsite).join(" | "));
 
   offsite.length = 0; errors.length = 0;
@@ -513,7 +520,7 @@ async function main() {
 
   const TAXOPS = { email: "ops@example.com", role: "tax_operations", institution: null };
   const ADMIN = { email: "admin@example.com", role: "university_admin", institution: GW.institution };
-  const STUDENT = { email: "s@gwmail.gwu.edu", role: "student", institution: GW.institution };
+  const STUDENT = { email: "s@gwmail.gwu.edu", role: "student", institution: GW.institution, name: "Sam Kettle" };
 
   await asRole(TAXOPS, { institutions: [GW, HOWARD] }, 200, async function () {
     await page.goto(base + "/dashboard.html", { waitUntil: "networkidle" });
@@ -556,11 +563,23 @@ async function main() {
   await asRole(STUDENT, { institutions: [GW] }, 200, async function () {
     await page.goto(base + "/index.html", { waitUntil: "networkidle" });
     await page.waitForTimeout(600);
-    const who = await page.locator(".nav-who").innerText();
+    const initials = await page.locator(".nav-initials").innerText();
+    const href = await page.getAttribute(".nav-initials", "href");
     const out = await page.locator(".nav-signout").count();
-    check("A signed-in student sees their address and a way out, on an ordinary page",
-      who === STUDENT.email && out === 1, "who=" + who + " signout=" + out);
+    check("A signed-in student sees their initials, linked to their account, and a way out",
+      initials === "SK" && /account\.html$/.test(href || "") && out === 1,
+      "initials=" + initials + " href=" + href + " signout=" + out);
   });
+
+  /* No name on the account: the address stands in, so the header never
+     shows an empty circle while someone is signed in. */
+  await asRole({ email: "nobody@gwmail.gwu.edu", role: "student", institution: GW.institution },
+    { institutions: [GW] }, 200, async function () {
+      await page.goto(base + "/index.html", { waitUntil: "networkidle" });
+      await page.waitForTimeout(600);
+      const initials = await page.locator(".nav-initials").innerText();
+      check("A student with no name saved still gets an initial", initials === "N", initials);
+    });
 
   await asRole(null, null, 403, async function () {
     await page.goto(base + "/index.html", { waitUntil: "networkidle" });

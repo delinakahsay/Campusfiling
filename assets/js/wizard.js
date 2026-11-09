@@ -1132,7 +1132,11 @@ async function plansApi(path, options) {
 async function saveToAccount() {
   const button = $("save-account");
   if (button) button.disabled = true;
-  const r = await plansApi("/api/plans", { method: "PUT", body: { answers: answersToObject() } });
+  collect();
+  const r = await plansApi("/api/plans", {
+    method: "PUT",
+    body: { answers: answersToObject(), summary: planSummary(derive()) }
+  });
   if (button) button.disabled = false;
 
   if (r.status === 401) {
@@ -1267,6 +1271,51 @@ function softwareChoice(d) {
     why: "free federal filing including the education and investment forms, with a modest per state charge" };
 }
 
+let LAST_ACTION_STEPS = [];
+
+/* What the account page shows instead of a year and a timestamp: the
+   conclusions, short enough to read at a glance. Built here because the
+   walkthrough has just done the arithmetic, so there is no second
+   implementation of the tax logic to drift from this one. */
+function planSummary(d) {
+  const DEPENDENCY = {
+    dependent: "Claimed as a dependent",
+    independent: "Files independently",
+    undetermined: "Dependency not settled",
+    unsupported: "Not supported here"
+  };
+
+  const SOFTWARE = {
+    freetaxusa: "FreeTaxUSA",
+    freefile: "IRS Free File",
+    fillable: "Free File Fillable Forms",
+    turbotax: "TurboTax",
+    vita: "a VITA clinic",
+    sprintax: "Sprintax"
+  };
+
+  const parts = stateSummary(d.states);
+  const aotcYears = A.aotc === "unknown" ? null : parseInt(A.aotc, 10);
+  const aotcLeft = aotcYears === null ? null : TAX.aotcLifetimeYears - aotcYears;
+
+  let credit = null;
+  if (A.halftime === "yes" && aotcLeft !== 0) credit = "American Opportunity Credit";
+  else if (d.qualifiedEd > 0) credit = "Lifetime Learning Credit";
+
+  return {
+    refund: Math.round(d.refund),
+    mustFile: !!d.mustFile,
+    dependency: DEPENDENCY[d.dep.status] || null,
+    income: Math.round(d.total),
+    standardDeduction: Math.round(d.sd),
+    returns: parts.length ? "Federal plus " + parts.join(", ") : "Federal only",
+    software: SOFTWARE[A.software] || null,
+    educationCredit: credit,
+    steps: LAST_ACTION_STEPS.slice(0, 12),
+    documents: (A.havedoc || []).slice(0, 12)
+  };
+}
+
 function buildActionList(d) {
   const steps = [];
 
@@ -1350,6 +1399,10 @@ function buildActionList(d) {
     d.refund >= 0
       ? "You are owed an estimated <strong>" + money(d.refund) + "</strong>. There is no penalty for filing late when you are owed money, but the refund expires three years after the deadline."
       : "You are estimated to owe <strong>" + money(Math.abs(d.refund)) + "</strong>. File on time even if you cannot pay, then set up an IRS payment plan. The late filing penalty is roughly ten times the late payment penalty."]);
+
+  /* Kept so the saved summary can carry the same list the student just
+     read, rather than a second version of it assembled elsewhere. */
+  LAST_ACTION_STEPS = steps.map(function (s) { return s[0]; });
 
   return '<div class="result-card is-ok" id="action-list">' +
     '<h3>Do these, in this order</h3>' +

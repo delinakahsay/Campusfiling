@@ -69,6 +69,21 @@ create table if not exists public.profiles (
   created_at     timestamptz not null default now()
 );
 
+-- The name is for addressing someone and for the initials in the header.
+-- It is the only thing the product knows about a person beyond their
+-- address, and it is never required to produce a filing plan.
+alter table public.profiles
+  add column if not exists full_name text;
+
+-- A short, readable version of the plan, captured when the student saves
+-- rather than recomputed later. The walkthrough has already done the
+-- arithmetic at that moment, and recomputing it anywhere else would mean
+-- a second implementation of the tax logic that could drift from the
+-- first. Figures only: this holds what the plan concluded, not the
+-- answers behind it, which live in the answers column already.
+alter table public.saved_plans
+  add column if not exists summary jsonb;
+
 -- The only way to hold a staff role, and the only way to sign up from a
 -- non-GW address. Seeded by hand, never by the application.
 create table if not exists public.staff_invites (
@@ -136,11 +151,12 @@ declare
   addr text := lower(coalesce(new.email, ''));
   inv  public.staff_invites%rowtype;
   inst uuid;
+  nm   text := nullif(btrim(coalesce(new.raw_user_meta_data ->> 'full_name', '')), '');
 begin
   select * into inv from public.staff_invites s where s.email = addr;
   if found then
-    insert into public.profiles (user_id, role, institution_id)
-    values (new.id, inv.role, inv.institution_id)
+    insert into public.profiles (user_id, role, institution_id, full_name)
+    values (new.id, inv.role, inv.institution_id, nm)
     on conflict (user_id) do nothing;
     return new;
   end if;
@@ -149,8 +165,8 @@ begin
     from public.institution_domains d
    where d.domain = split_part(addr, '@', 2);
 
-  insert into public.profiles (user_id, role, institution_id)
-  values (new.id, 'student', inst)
+  insert into public.profiles (user_id, role, institution_id, full_name)
+  values (new.id, 'student', inst, nm)
   on conflict (user_id) do nothing;
   return new;
 end;
@@ -221,13 +237,35 @@ revoke truncate, references, trigger on public.document_reads      from authenti
 -- ----------------------------------------------------------- reporting
 
 create or replace function public.my_role()
-returns table (role text, institution text)
+returns table (role text, institution text, full_name text)
 language sql stable security definer set search_path = '' as $$
-  select coalesce(p.role, 'student'), i.name
+  select coalesce(p.role, 'student'), i.name, p.full_name
     from public.profiles p
     left join public.institutions i on i.id = p.institution_id
    where p.user_id = auth.uid();
 $$;
+
+-- A student may correct their own name. Nothing else about a profile is
+-- theirs to change: the role and the institution are assigned, and a
+-- student who could edit either would be granting themselves access.
+create or replace function public.set_my_name(new_name text)
+returns text language plpgsql security definer set search_path = '' as $$
+declare
+  nm text := nullif(btrim(coalesce(new_name, '')), '');
+begin
+  if auth.uid() is null then
+    raise exception 'not signed in';
+  end if;
+  if length(coalesce(nm, '')) > 80 then
+    raise exception 'name too long';
+  end if;
+  update public.profiles set full_name = nm where user_id = auth.uid();
+  return nm;
+end;
+$$;
+
+revoke execute on function public.set_my_name(text) from public, anon;
+grant execute on function public.set_my_name(text) to authenticated;
 
 -- Counts only. There is no path from here to a student's answers, and an
 -- administrator has no read on saved_plans to fall back on.

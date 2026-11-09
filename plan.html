@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Your filing plan | Campus Filing</title>
+<meta name="description" content="A saved Campus Filing plan: what to file, where, and what to check." />
+<meta name="robots" content="noindex" />
+<link rel="icon" href="assets/images/filing-folder.png" type="image/png" />
+<meta name="theme-color" content="#101519" />
+<script src="assets/js/theme.js"></script>
+<script src="assets/js/session.js"></script>
+<script src="assets/js/require-account.js"></script>
+<link rel="stylesheet" href="assets/css/base.css" />
+<link rel="stylesheet" href="assets/css/layout.css" />
+<link rel="stylesheet" href="assets/css/components.css" />
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="wordmark" href="index.html">Campus <em>Filing</em></a>
+    <button class="nav-toggle" aria-expanded="false" aria-controls="nav">Menu</button>
+    <nav class="site-nav" id="nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="how-it-works.html">How it works</a>
+      <a href="guides/index.html">Guides</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="faq.html">FAQ</a>
+      <a href="account.html" aria-current="page">Account</a>
+      <a class="nav-cta" href="app/file.html">Build my filing plan</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Saved plan, tax year <span id="plan-year">&nbsp;</span></p>
+    <h1 id="plan-headline">Your filing plan</h1>
+    <p id="plan-sub">&nbsp;</p>
+  </div>
+</div>
+
+<main id="main">
+  <div class="wrap">
+
+    <p id="plan-status" class="note" hidden></p>
+
+    <div id="plan-body" hidden>
+
+      <div class="stat-row" id="plan-stats"></div>
+
+      <div class="plan-cols">
+        <section>
+          <h2>Do these, in this order</h2>
+          <ol class="plan-steps" id="plan-steps"></ol>
+          <p id="plan-steps-empty" hidden>This plan did not record its action list. Open it in the walkthrough to rebuild it.</p>
+        </section>
+
+        <aside>
+          <h2>Documents to have in front of you</h2>
+          <ul class="plan-docs" id="plan-docs"></ul>
+          <p id="plan-docs-empty" hidden>No documents were ticked on this plan.</p>
+
+          <h2 class="acct-gap">The details</h2>
+          <div class="table-wrap">
+            <table class="data">
+              <caption class="sr-only">Figures behind this plan</caption>
+              <tbody id="plan-detail"></tbody>
+            </table>
+          </div>
+        </aside>
+      </div>
+
+      <div class="btn-row">
+        <a class="btn btn-green" id="plan-edit" href="app/file.html">Edit these answers</a>
+        <a class="btn btn-ghost" href="account.html">Back to my plans</a>
+        <button type="button" class="btn btn-ghost" id="plan-print">Print or save as PDF</button>
+      </div>
+
+      <div class="note note-warn acct-gap">
+        <p><strong>This is a summary, not a return.</strong> Campus Filing provides guidance, not official tax advice, and nothing here is filed on your behalf. Check every figure against the form in front of you before you type it into anything.</p>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-legal">
+      <p>Campus Filing is a student project at the George Washington University School of Business. Not affiliated with the Internal Revenue Service.</p>
+      <p class="footer-theme"><button type="button" class="btn btn-ghost btn-sm" id="theme-toggle" aria-pressed="false">Switch to dark</button></p>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/plan.js"></script>
+</body>
+</html>

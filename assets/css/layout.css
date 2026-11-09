@@ -75,14 +75,24 @@
    account they are in rather than to be told their own email. */
 .nav-session { display: flex; align-items: center; gap: 14px; }
 
-.nav-who {
-  color: #8C979E;
-  font-size: 13.5px;
-  max-width: 190px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.nav-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--forest);
+  color: var(--white) !important;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  border-bottom: none !important;
+  padding: 0 !important;
+  flex: 0 0 auto;
 }
+
+.nav-initials:hover { background: var(--btn-accent-bg-hover); }
 
 .nav-signout {
   background: none;
@@ -248,8 +258,10 @@
   .nav-cta { text-align: center; margin-top: 10px; }
   /* Stacked with the links rather than beside them, so the address does
      not get squeezed into an ellipsis on a phone. */
-  .nav-session { flex-direction: column; align-items: stretch; gap: 0; }
-  .nav-who { max-width: none; padding: 11px 0 4px; }
+  /* Stacked with the links on a phone. The circle keeps its shape and
+     sits on its own line rather than being squeezed beside the button. */
+  .nav-session { flex-direction: column; align-items: flex-start; gap: 0; }
+  .nav-initials { margin: 12px 0 4px; }
   .nav-signout { text-align: left; padding: 4px 0 11px; border-bottom: 1px solid #2A3238; }
   .nav-toggle { display: block; }
   .band { padding: 36px 0; }
@@ -268,7 +280,6 @@
    colours set for a dark header and vanish into a light one. */
 .site-nav .nav-signout { color: var(--slate); }
 .site-nav .nav-signout:hover { color: var(--forest); }
-.site-nav .nav-who { color: var(--muted); }
 .nav-toggle { color: var(--ink); border-color: var(--line); }
 .site-footer { background: var(--paper); color: var(--slate); border-top: 1px solid var(--line); }
 .site-footer .wordmark, .site-footer h4 { color: var(--ink); }

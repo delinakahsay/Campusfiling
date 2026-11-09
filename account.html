@@ -60,6 +60,11 @@
       <div class="card">
         <h2 id="auth-title">Sign in</h2>
         <form id="auth-form" novalidate>
+          <div class="field" id="auth-name-field" hidden>
+            <label for="auth-name">Full name</label>
+            <small>Used to address you, and for your initials in the header.</small>
+            <input type="text" id="auth-name" autocomplete="name" maxlength="80" />
+          </div>
           <div class="field">
             <label for="auth-email">Email</label>
             <input type="email" id="auth-email" autocomplete="email" maxlength="320" required />
@@ -114,9 +119,36 @@
 
     <!-- Signed in -->
     <div id="acct-in" hidden>
-      <p class="acct-who">Signed in as <strong id="acct-email"></strong></p>
 
-      <h2>Your saved plans</h2>
+      <h2>My information</h2>
+      <div class="table-wrap">
+        <table class="data">
+          <caption class="sr-only">Your account details</caption>
+          <tbody>
+            <tr><th scope="row">Name</th><td id="info-name"></td></tr>
+            <tr><th scope="row">Email</th><td id="acct-email"></td></tr>
+            <tr><th scope="row">Institution</th><td id="info-institution"></td></tr>
+            <tr><th scope="row">Password</th><td>Stored only as a hash. Change it below.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <details class="acct-more">
+        <summary>Change your name</summary>
+        <form id="name-form" novalidate>
+          <div class="field">
+            <label for="name-value">Full name</label>
+            <small>Shown as your initials in the header. Leave it blank to remove it.</small>
+            <input type="text" id="name-value" autocomplete="name" maxlength="80" />
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn btn-green btn-sm" id="name-submit">Save name</button>
+            <span class="error" id="name-err" role="alert"></span>
+          </div>
+        </form>
+      </details>
+
+      <h2 class="acct-gap">Your saved plans</h2>
       <p id="plans-empty" hidden>No saved plans yet. Finish the walkthrough and choose <strong>Save to my account</strong> on your filing plan.</p>
       <div class="table-wrap" id="plans-wrap" hidden>
         <table class="data">
@@ -163,10 +195,6 @@
       <p><strong>What an account stores</strong></p>
       <p>Your email, a password Supabase stores only as a hash, and the walkthrough answers you choose to save: the same answers <em>Save my answers to a file</em> writes, kept in a database instead of your downloads.</p>
       <p>Never your documents, and never a Social Security number, employer, address or school. The walkthrough has no field for any of them.</p>
-    </div>
-    <div class="note note-warn acct-gap">
-      <p><strong>This is a student project</strong></p>
-      <p>For the capstone demo, use practice figures rather than your real income. You can delete a plan or the whole account at any time from this page.</p>
     </div>
     <p class="acct-gap"><a href="privacy.html#accounts">How accounts are kept private</a></p>
   </div>

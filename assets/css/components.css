@@ -344,3 +344,75 @@ input[type="text"], input[type="number"], input[type="email"], input[type="passw
 .field small[hidden] { display: none; }
 
 #plans-body th, #plans-body td { vertical-align: middle; }
+
+/* ---------- saved plan summary ---------- */
+
+.plan-cols {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 42px;
+  align-items: start;
+  margin-bottom: 34px;
+}
+
+@media (max-width: 860px) {
+  .plan-cols { grid-template-columns: 1fr; gap: 28px; }
+}
+
+.plan-steps { padding-left: 0; list-style: none; counter-reset: step; }
+
+.plan-steps li {
+  counter-increment: step;
+  position: relative;
+  padding: 0 0 16px 42px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.plan-steps li:last-child { border-bottom: none; }
+
+/* The number carries the order, so it is the only thing with weight. */
+.plan-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: var(--sage);
+  color: var(--forest);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plan-docs { padding-left: 0; list-style: none; }
+
+.plan-docs li {
+  padding: 9px 0 9px 26px;
+  position: relative;
+  border-bottom: 1px solid var(--line);
+}
+
+.plan-docs li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 15px;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  border: 2px solid var(--forest);
+}
+
+.stat-good { border-left-color: var(--forest); }
+.stat-warn { border-left-color: var(--rust); }
+.stat-warn .value { color: var(--rust); }
+
+@media print {
+  .site-header, .site-footer, .btn-row, .skip, #plan-status { display: none !important; }
+  .plan-cols { grid-template-columns: 1fr 1fr; }
+}
