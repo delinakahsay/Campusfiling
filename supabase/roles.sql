@@ -31,6 +31,16 @@ create table if not exists public.institutions (
   created_at  timestamptz not null default now()
 );
 
+-- Coverage, not raw counts, is what the Administrator Usage Report is
+-- specified to show: unique students completing a filing plan as a share
+-- of total enrollment. That needs a denominator.
+alter table public.institutions
+  add column if not exists enrollment integer;
+
+update public.institutions
+   set enrollment = 25374
+ where slug = 'gwu' and enrollment is distinct from 25374;
+
 create table if not exists public.institution_domains (
   domain          text primary key,
   institution_id  uuid not null references public.institutions(id) on delete cascade
@@ -224,6 +234,7 @@ $$;
 create or replace function public.institution_usage()
 returns table (
   institution    text,
+  enrollment     integer,
   students       bigint,
   plans          bigint,
   documents_read bigint,
@@ -246,6 +257,7 @@ begin
 
   return query
     select i.name,
+           i.enrollment,
            count(distinct p.user_id),
            count(distinct sp.id),
            count(distinct dr.id),
@@ -256,7 +268,7 @@ begin
       left join public.saved_plans sp on sp.user_id = p.user_id
       left join public.document_reads dr on dr.user_id = p.user_id
      where caller_role = 'tax_operations' or i.id = caller_inst
-     group by i.id, i.name
+     group by i.id, i.name, i.enrollment
      order by i.name;
 end;
 $$;

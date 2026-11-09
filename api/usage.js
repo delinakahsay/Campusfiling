@@ -55,6 +55,7 @@ module.exports = async function handler(req, res) {
     institutions: rows.map(function (row) {
       return {
         institution: String(row.institution || ""),
+        enrollment: row.enrollment === null || row.enrollment === undefined ? null : Number(row.enrollment),
         students: Number(row.students || 0),
         plans: Number(row.plans || 0),
         documentsRead: Number(row.documents_read || 0),

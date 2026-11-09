@@ -489,12 +489,12 @@ async function main() {
 
   const GW = {
     institution: "George Washington University",
-    students: 412, plans: 286, documentsRead: 931,
+    enrollment: 25374, students: 412, plans: 286, documentsRead: 931,
     lastActivity: "2026-11-08T18:00:00Z"
   };
   const HOWARD = {
     institution: "Howard University",
-    students: 77, plans: 40, documentsRead: 122, lastActivity: null
+    enrollment: 9689, students: 77, plans: 40, documentsRead: 122, lastActivity: null
   };
 
   async function asRole(user, usage, usageStatus, fn) {
@@ -519,8 +519,8 @@ async function main() {
     await page.goto(base + "/dashboard.html", { waitUntil: "networkidle" });
     await page.waitForTimeout(600);
     const rows = await page.locator("#dash-rows tr").count();
-    const students = await page.locator("#t-students").innerText();
-    check("Tax operations sees every institution, totalled",
+    const students = await page.locator("#dash-totals .stat .value").first().innerText();
+    check("Tax content manager sees every institution, totalled",
       rows === 2 && students === "489", "rows=" + rows + " students=" + students);
   });
 

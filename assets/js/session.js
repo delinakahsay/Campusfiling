@@ -63,38 +63,63 @@
     location.href = base + "index.html";
   }
 
-  function render(user) {
-    var nav = document.querySelector("nav.site-nav");
-    if (!nav) return;
+  /* What each role is offered. Staff do not get the student site: a
+     university administrator has no use for a document checklist and
+     tax operations is not here to file a return. Rebuilding the list is
+     the honest version of this, rather than hiding links with CSS and
+     leaving them in the page for anyone who looks. */
+  var STAFF_NAV = {
+    university_admin: [
+      ["dashboard.html", "Overview"],
+      ["about.html", "About Campus Filing"]
+    ],
+    tax_operations: [
+      ["dashboard.html", "Overview"],
+      ["dashboard.html?tab=taxyear", "Tax year"],
+      ["about.html", "Methodology"]
+    ]
+  };
 
-    var account = nav.querySelector('a[href$="account.html"]');
+  function sessionSlot(user) {
     var slot = el("span", "nav-session");
-
-    if (!user) {
-      if (account) account.textContent = "Sign in";
-      nav.insertBefore(slot, nav.querySelector(".nav-cta"));
-      return;
-    }
-
-    if (account) {
-      account.textContent = CF.isStaff(user) ? "Dashboard" : "My plans";
-      if (CF.isStaff(user)) account.setAttribute("href", base + "dashboard.html");
-    }
-
     slot.appendChild(el("span", "nav-who", user.email));
     var out = el("button", "nav-signout", "Sign out");
     out.type = "button";
     out.addEventListener("click", signOut);
     slot.appendChild(out);
-    nav.insertBefore(slot, nav.querySelector(".nav-cta"));
+    return slot;
+  }
 
-    /* A student is the only one the walkthrough is for. Staff get a link
-       to their own view instead of an invitation to file taxes. */
-    var cta = nav.querySelector(".nav-cta");
-    if (cta && CF.isStaff(user)) {
-      cta.textContent = "Open dashboard";
-      cta.setAttribute("href", base + "dashboard.html");
+  function render(user) {
+    var nav = document.querySelector("nav.site-nav");
+    if (!nav) return;
+
+    if (!user) {
+      var account = nav.querySelector('a[href$="account.html"]');
+      if (account) account.textContent = "Sign in";
+      nav.insertBefore(el("span", "nav-session"), nav.querySelector(".nav-cta"));
+      return;
     }
+
+    if (!CF.isStaff(user)) {
+      var acct = nav.querySelector('a[href$="account.html"]');
+      if (acct) acct.textContent = "My plans";
+      nav.insertBefore(sessionSlot(user), nav.querySelector(".nav-cta"));
+      return;
+    }
+
+    /* Staff: replace the student navigation outright. */
+    var here = location.pathname.split("/").pop() + location.search;
+    nav.textContent = "";
+    (STAFF_NAV[user.role] || []).forEach(function (item) {
+      var a = el("a", null, item[1]);
+      a.setAttribute("href", base + item[0]);
+      if (item[0] === here || (here === "dashboard.html" && item[0] === "dashboard.html")) {
+        a.setAttribute("aria-current", "page");
+      }
+      nav.appendChild(a);
+    });
+    nav.appendChild(sessionSlot(user));
   }
 
   function start() {

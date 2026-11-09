@@ -47,11 +47,7 @@
 
     <p id="dash-status" class="note" hidden></p>
 
-    <div id="dash-totals" class="stat-row" hidden>
-      <div class="stat"><div class="value" id="t-students">0</div><div class="label">Students with an account</div></div>
-      <div class="stat"><div class="value" id="t-plans">0</div><div class="label">Filing plans saved</div></div>
-      <div class="stat"><div class="value" id="t-docs">0</div><div class="label">Documents read</div></div>
-    </div>
+    <div id="dash-totals" class="stat-row" hidden></div>
 
     <div id="dash-table-wrap" hidden>
       <h2>By institution</h2>
@@ -71,6 +67,26 @@
       </div>
     </div>
 
+    <section id="panel-taxyear" hidden>
+      <p>Every dollar figure and threshold the product calculates with, for both years it supports. Nothing elsewhere in the codebase holds a number of its own, so this is the complete list to verify against the IRS release each season.</p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th scope="col">Figure</th>
+              <th scope="col" class="num">2025</th>
+              <th scope="col" class="num">2026</th>
+              <th scope="col">Changed</th>
+            </tr>
+          </thead>
+          <tbody id="taxyear-rows"></tbody>
+        </table>
+      </div>
+      <div class="note note-warn">
+        <p><strong>Read-only for now.</strong> These figures live in a versioned source file rather than the database, so changing one is a code change with a commit attached to it and a test suite that has to pass. That is deliberate for tax arithmetic: an edit box on a web page would let a wrong standard deduction reach students with nothing recording who changed it or why. Making them editable here is a real piece of work and it needs a decision about where the figures should live.</p>
+      </div>
+    </section>
+
     <div class="note" id="dash-privacy" hidden>
       <p><strong>This page shows counts, never contents.</strong> A student's answers are not displayed here because they are not reachable from this account. Row Level Security in the database limits every signed-in person to their own rows, and this page is built from an aggregate function that returns totals rather than records. There is no query this page could send that would return what a student entered.</p>
     </div>
@@ -87,6 +103,7 @@
   </div>
 </footer>
 
+<script src="assets/js/tax-constants.js"></script>
 <script src="assets/js/nav.js"></script>
 <script src="assets/js/dashboard.js"></script>
 </body>
