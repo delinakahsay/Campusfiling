@@ -236,6 +236,13 @@ revoke truncate, references, trigger on public.document_reads      from authenti
 
 -- ----------------------------------------------------------- reporting
 
+/* These two gained columns after they first shipped, and Postgres will
+   not let CREATE OR REPLACE change a function's return type. Dropping
+   first is what makes this file safe to run again over an older
+   version of itself; the grants below are reapplied either way. */
+drop function if exists public.my_role();
+drop function if exists public.institution_usage();
+
 create or replace function public.my_role()
 returns table (role text, institution text, full_name text)
 language sql stable security definer set search_path = '' as $$
