@@ -69,6 +69,34 @@
 
 .nav-cta:hover { background: var(--btn-accent-bg-hover); }
 
+/* Who is signed in, written into the nav by session.js. The address is
+   quieter than the links around it: it is there to be checked, not
+   read, and a student who glances at the header wants to know which
+   account they are in rather than to be told their own email. */
+.nav-session { display: flex; align-items: center; gap: 14px; }
+
+.nav-who {
+  color: #8C979E;
+  font-size: 13.5px;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-signout {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #C6CFD4;
+  font: inherit;
+  font-size: 14.5px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.nav-signout:hover { color: var(--white); }
+
 .nav-toggle {
   display: none;
   margin-left: auto;
@@ -218,6 +246,11 @@
   .site-nav.open { display: flex; }
   .site-nav a { padding: 11px 0; border-bottom: 1px solid #2A3238; }
   .nav-cta { text-align: center; margin-top: 10px; }
+  /* Stacked with the links rather than beside them, so the address does
+     not get squeezed into an ellipsis on a phone. */
+  .nav-session { flex-direction: column; align-items: stretch; gap: 0; }
+  .nav-who { max-width: none; padding: 11px 0 4px; }
+  .nav-signout { text-align: left; padding: 4px 0 11px; border-bottom: 1px solid #2A3238; }
   .nav-toggle { display: block; }
   .band { padding: 36px 0; }
 }
@@ -231,6 +264,11 @@
 .site-nav a { color: var(--slate); }
 .site-nav a:hover, .site-nav a[aria-current="page"] { color: var(--forest); }
 .site-nav a[aria-current="page"] { border-bottom-color: var(--forest); }
+/* The session controls follow the links. Without this they keep the
+   colours set for a dark header and vanish into a light one. */
+.site-nav .nav-signout { color: var(--slate); }
+.site-nav .nav-signout:hover { color: var(--forest); }
+.site-nav .nav-who { color: var(--muted); }
 .nav-toggle { color: var(--ink); border-color: var(--line); }
 .site-footer { background: var(--paper); color: var(--slate); border-top: 1px solid var(--line); }
 .site-footer .wordmark, .site-footer h4 { color: var(--ink); }

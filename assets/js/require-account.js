@@ -72,14 +72,22 @@
     location.replace(accountUrl + "?next=" + encodeURIComponent(next));
   }
 
-  fetch("/api/auth", { credentials: "same-origin" })
-    .then(function (r) {
-      if (!r.ok) throw new Error(String(r.status));
-      return r.json();
-    })
-    .then(function (d) {
+  /* session.js loads first and has already asked. Reuse its answer
+     rather than making a second identical request, which would show the
+     navigation for one state while the gate acted on another. */
+  var asking = (window.CF && window.CF.session)
+    ? window.CF.session
+    : fetch("/api/auth", { credentials: "same-origin" })
+        .then(function (r) {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json();
+        })
+        .then(function (d) { return (d && d.user) || null; });
+
+  asking
+    .then(function (user) {
       clearTimeout(failsafe);
-      if (d && d.user) { reveal(); return; }
+      if (user) { reveal(); return; }
       toAccount();
     })
     .catch(function () {

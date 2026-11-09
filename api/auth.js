@@ -39,11 +39,32 @@ function returnUrl(req) {
   return encodeURIComponent(sb.siteOrigin(req) + "/account.html");
 }
 
+/* The role travels with the identity, because every page that cares who
+   is looking also cares what they are allowed to see, and a second round
+   trip to find out would show the wrong navigation first and correct it
+   a moment later. Resolved by the database, never by anything the
+   browser sends. */
+async function roleFor(token) {
+  const r = await sb.call("/rest/v1/rpc/my_role", { method: "POST", token: token, body: {} });
+  const row = Array.isArray(r.data) ? r.data[0] : r.data;
+  if (r.status !== 200 || !row) return { role: "student", institution: null };
+  return {
+    role: typeof row.role === "string" ? row.role : "student",
+    institution: typeof row.institution === "string" ? row.institution : null
+  };
+}
+
 async function whoami(req, res) {
   const token = await sb.sessionToken(req, res);
   if (!token) return sb.send(res, 200, { user: null });
   const r = await sb.call("/auth/v1/user", { token: token });
-  if (r.status === 200) return sb.send(res, 200, { user: publicUser(r.data) });
+  if (r.status === 200) {
+    const who = publicUser(r.data);
+    const extra = await roleFor(token);
+    who.role = extra.role;
+    who.institution = extra.institution;
+    return sb.send(res, 200, { user: who });
+  }
   if (r.status === 401 || r.status === 403 || r.status === 404) {
     sb.clearSession(res);
     return sb.send(res, 200, { user: null });

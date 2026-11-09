@@ -75,6 +75,15 @@
 
 .stat .label { font-size: 14px; color: var(--muted); }
 
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 26px;
+  margin: 8px 0 38px;
+}
+
+.stat-row[hidden] { display: none; }
+
 /* ---------- notes ---------- */
 
 .note {

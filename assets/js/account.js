@@ -115,6 +115,15 @@
   async function signedIn(user) {
     const next = safeNext();
     if (next) { location.replace(next); return; }
+
+    /* Staff have no filing plans of their own to show here. The role
+       arrives with the identity from the server, which read it from the
+       profile row, so this is a convenience rather than a control: the
+       dashboard refuses a student on its own account. */
+    if (user.role === "university_admin" || user.role === "tax_operations") {
+      location.replace("dashboard.html");
+      return;
+    }
     $("acct-email").textContent = user.email;
     show("acct-in");
     await loadPlans();

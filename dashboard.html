@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dashboard | Campus Filing</title>
+<meta name="description" content="Campus Filing usage by institution, for staff." />
+<meta name="robots" content="noindex" />
+<link rel="icon" href="assets/images/filing-folder.png" type="image/png" />
+<meta name="theme-color" content="#101519" />
+<script src="assets/js/theme.js"></script>
+<script src="assets/js/session.js"></script>
+<link rel="stylesheet" href="assets/css/base.css" />
+<link rel="stylesheet" href="assets/css/layout.css" />
+<link rel="stylesheet" href="assets/css/components.css" />
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="wordmark" href="index.html">Campus <em>Filing</em></a>
+    <button class="nav-toggle" aria-expanded="false" aria-controls="nav">Menu</button>
+    <nav class="site-nav" id="nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="how-it-works.html">How it works</a>
+      <a href="guides/index.html">Guides</a>
+      <a href="deadlines.html">Deadlines</a>
+      <a href="faq.html">FAQ</a>
+      <a href="account.html" aria-current="page">Account</a>
+      <a class="nav-cta" href="app/file.html">Build my filing plan</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-head">
+  <div class="wrap">
+    <p class="eyebrow" id="dash-role">Dashboard</p>
+    <h1 id="dash-title">Usage</h1>
+    <p id="dash-sub">How Campus Filing is being used.</p>
+  </div>
+</div>
+
+<main id="main">
+  <div class="wrap">
+
+    <p id="dash-status" class="note" hidden></p>
+
+    <div id="dash-totals" class="stat-row" hidden>
+      <div class="stat"><div class="value" id="t-students">0</div><div class="label">Students with an account</div></div>
+      <div class="stat"><div class="value" id="t-plans">0</div><div class="label">Filing plans saved</div></div>
+      <div class="stat"><div class="value" id="t-docs">0</div><div class="label">Documents read</div></div>
+    </div>
+
+    <div id="dash-table-wrap" hidden>
+      <h2>By institution</h2>
+      <div class="table-wrap">
+      <table class="data" id="dash-table">
+        <thead>
+          <tr>
+            <th scope="col">Institution</th>
+            <th scope="col" class="num">Students</th>
+            <th scope="col" class="num">Plans saved</th>
+            <th scope="col" class="num">Documents read</th>
+            <th scope="col">Last activity</th>
+          </tr>
+        </thead>
+        <tbody id="dash-rows"></tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="note" id="dash-privacy" hidden>
+      <p><strong>This page shows counts, never contents.</strong> A student's answers are not displayed here because they are not reachable from this account. Row Level Security in the database limits every signed-in person to their own rows, and this page is built from an aggregate function that returns totals rather than records. There is no query this page could send that would return what a student entered.</p>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-legal">
+      <p>Campus Filing is a student project at the George Washington University School of Business. Not affiliated with the Internal Revenue Service.</p>
+      <p class="footer-theme"><button type="button" class="btn btn-ghost btn-sm" id="theme-toggle" aria-pressed="false">Switch to dark</button></p>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/dashboard.js"></script>
+</body>
+</html>

@@ -485,6 +485,92 @@ async function main() {
       "button=" + button + " status=" + said);
   });
 
+  /* ---------- the staff dashboard ---------- */
+
+  const GW = {
+    institution: "George Washington University",
+    students: 412, plans: 286, documentsRead: 931,
+    lastActivity: "2026-11-08T18:00:00Z"
+  };
+  const HOWARD = {
+    institution: "Howard University",
+    students: 77, plans: 40, documentsRead: 122, lastActivity: null
+  };
+
+  async function asRole(user, usage, usageStatus, fn) {
+    await page.route("**/api/auth", function (route) {
+      route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ user: user }) });
+    });
+    await page.route("**/api/usage", function (route) {
+      route.fulfill({ status: usageStatus, contentType: "application/json",
+        body: JSON.stringify(usageStatus === 200 ? usage
+          : { error: "This page is for Campus Filing staff." }) });
+    });
+    try { await fn(); }
+    finally { await page.unroute("**/api/auth"); await page.unroute("**/api/usage"); }
+  }
+
+  const TAXOPS = { email: "ops@example.com", role: "tax_operations", institution: null };
+  const ADMIN = { email: "admin@example.com", role: "university_admin", institution: GW.institution };
+  const STUDENT = { email: "s@gwmail.gwu.edu", role: "student", institution: GW.institution };
+
+  await asRole(TAXOPS, { institutions: [GW, HOWARD] }, 200, async function () {
+    await page.goto(base + "/dashboard.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    const rows = await page.locator("#dash-rows tr").count();
+    const students = await page.locator("#t-students").innerText();
+    check("Tax operations sees every institution, totalled",
+      rows === 2 && students === "489", "rows=" + rows + " students=" + students);
+  });
+
+  await asRole(ADMIN, { institutions: [GW] }, 200, async function () {
+    await page.goto(base + "/dashboard.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    const title = await page.locator("#dash-title").innerText();
+    const tableShown = await page.locator("#dash-table-wrap").isVisible();
+    check("A university administrator sees their own institution and no table",
+      title === GW.institution && !tableShown, "title=" + title + " table=" + tableShown);
+  });
+
+  /* The refusal comes from the database, which the stub stands in for.
+     What matters here is that the page shows no figures when refused. */
+  await asRole(STUDENT, null, 403, async function () {
+    await page.goto(base + "/dashboard.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    const totals = await page.locator("#dash-totals").isVisible();
+    const said = await page.locator("#dash-status").innerText();
+    check("A student on the dashboard is refused and shown no figures",
+      !totals && /staff/i.test(said), "totals=" + totals + " said=" + said);
+  });
+
+  await asRole(null, null, 403, async function () {
+    await page.goto(base + "/dashboard.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(700);
+    check("A signed-out visitor to the dashboard is sent to sign in",
+      page.url().indexOf("/account.html?next=") > -1, page.url());
+  });
+
+  /* ---------- auth-aware navigation ---------- */
+
+  await asRole(STUDENT, { institutions: [GW] }, 200, async function () {
+    await page.goto(base + "/index.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    const who = await page.locator(".nav-who").innerText();
+    const out = await page.locator(".nav-signout").count();
+    check("A signed-in student sees their address and a way out, on an ordinary page",
+      who === STUDENT.email && out === 1, "who=" + who + " signout=" + out);
+  });
+
+  await asRole(null, null, 403, async function () {
+    await page.goto(base + "/index.html", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600);
+    const account = await page.locator('nav.site-nav a[href$="account.html"]').innerText();
+    const out = await page.locator(".nav-signout").count();
+    check("A signed-out visitor is offered a way in and no way out",
+      account === "Sign in" && out === 0, "account=" + account + " signout=" + out);
+  });
+
   /* The reference pages are deliberately not gated. */
   await withAuth(200, { user: null }, async function () {
     for (const open of ["/guides/glossary.html", "/deadlines.html", "/privacy.html"]) {
