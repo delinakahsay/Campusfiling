@@ -102,6 +102,18 @@ async function main() {
     });
   });
 
+  /* Site content, stubbed empty. The real endpoint is covered by
+     tests-accounts.js; here every page just needs its fetch to resolve
+     so the shipped text renders and nothing logs a failed resource. */
+  await page.context().route("**/api/content", function (route) {
+    if (route.request().method() === "GET") {
+      return route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ slots: {}, figures: [] }) });
+    }
+    route.fulfill({ status: 403, contentType: "application/json",
+      body: JSON.stringify({ error: "Only the tax content manager can change the site's text." }) });
+  });
+
   const errors = [];
   /* Webfonts come from Google and this runner may have no route to them.
      A missing font is a cosmetic matter, not a fault in the page, so it

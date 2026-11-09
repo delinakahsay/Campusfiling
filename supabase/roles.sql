@@ -325,3 +325,127 @@ revoke execute on function public.create_profile_for_user() from public, anon, a
 
 grant execute on function public.my_role()           to authenticated;
 grant execute on function public.institution_usage() to authenticated;
+
+-- ------------------------------------------------- editable site content
+
+-- US-22: the tax content manager updates the FAQ and deadline pages when
+-- IRS rules change. The text lives here, keyed by a slot the page knows,
+-- and every save records who made it and when. Content is applied to the
+-- page as plain text, never as markup, so nothing stored here can carry
+-- script onto a public page.
+
+create table if not exists public.site_content (
+  slot        text primary key check (slot ~ '^[a-z0-9:-]{1,80}$'),
+  content     text not null check (length(content) <= 2000),
+  updated_at  timestamptz not null default now(),
+  updated_by  text
+);
+
+-- Figure overrides, separate from prose because they are numbers with
+-- bounds, not text. The walkthrough, the estimator and every data-tax
+-- span on the site read these on load, so a saved change reaches the
+-- arithmetic, not just a display. Brackets stay in code: a bracket edit
+-- changes seven numbers that must stay ordered, which is a code change
+-- with a test suite, not a field.
+create table if not exists public.tax_figure_overrides (
+  tax_year    integer not null check (tax_year between 2020 and 2100),
+  figure      text not null,
+  value       numeric not null check (value >= 0 and value <= 1000000),
+  updated_at  timestamptz not null default now(),
+  updated_by  text,
+  primary key (tax_year, figure)
+);
+
+alter table public.site_content         enable row level security;
+alter table public.tax_figure_overrides enable row level security;
+
+-- Public text on public pages: anyone may read, including signed-out
+-- visitors, because the pages that render it are open to everyone.
+drop policy if exists site_content_read on public.site_content;
+create policy site_content_read on public.site_content
+  for select to anon, authenticated using (true);
+
+drop policy if exists tax_overrides_read on public.tax_figure_overrides;
+create policy tax_overrides_read on public.tax_figure_overrides
+  for select to anon, authenticated using (true);
+
+revoke all on public.site_content         from anon, authenticated, public;
+revoke all on public.tax_figure_overrides from anon, authenticated, public;
+grant select on public.site_content         to anon, authenticated;
+grant select on public.tax_figure_overrides to anon, authenticated;
+
+-- Writes go through these two, which read the caller's role from their
+-- profile row. There is no insert or update grant on either table, so
+-- the functions are the only doors.
+
+create or replace function public.set_site_content(slot_name text, new_content text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  caller_role text;
+  caller_mail text;
+begin
+  select p.role into caller_role from public.profiles p where p.user_id = auth.uid();
+  if caller_role is distinct from 'tax_operations' then
+    raise exception 'not permitted';
+  end if;
+  select lower(u.email) into caller_mail from auth.users u where u.id = auth.uid();
+
+  if new_content is null or btrim(new_content) = '' then
+    delete from public.site_content where slot = slot_name;
+    return;
+  end if;
+
+  insert into public.site_content (slot, content, updated_by)
+  values (slot_name, new_content, caller_mail)
+  on conflict (slot) do update
+    set content = excluded.content,
+        updated_at = now(),
+        updated_by = excluded.updated_by;
+end;
+$$;
+
+create or replace function public.set_tax_figure(figure_year integer, figure_name text, figure_value numeric)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  caller_role text;
+  caller_mail text;
+  allowed text[] := array[
+    'singleStandardDeduction', 'dependentFloor', 'dependentEarnedBump',
+    'unearnedFilingTrigger', 'qualifyingRelativeIncomeTest',
+    'selfEmploymentTrigger', 'aotcMax', 'aotcRefundable', 'llcMax',
+    'studentLoanInterestCap', 'studentLoanPhaseoutStart',
+    'studentLoanPhaseoutEnd', 'capitalLossLimit', 'freeFileIncomeLimit',
+    'mileageFirstHalf', 'mileageSecondHalf'
+  ];
+begin
+  select p.role into caller_role from public.profiles p where p.user_id = auth.uid();
+  if caller_role is distinct from 'tax_operations' then
+    raise exception 'not permitted';
+  end if;
+  if not (figure_name = any(allowed)) then
+    raise exception 'that figure is not editable here';
+  end if;
+  select lower(u.email) into caller_mail from auth.users u where u.id = auth.uid();
+
+  if figure_value is null then
+    delete from public.tax_figure_overrides
+     where tax_year = figure_year and figure = figure_name;
+    return;
+  end if;
+
+  insert into public.tax_figure_overrides (tax_year, figure, value, updated_by)
+  values (figure_year, figure_name, figure_value, caller_mail)
+  on conflict (tax_year, figure) do update
+    set value = excluded.value,
+        updated_at = now(),
+        updated_by = excluded.updated_by;
+end;
+$$;
+
+revoke execute on function public.set_site_content(text, text) from public, anon;
+revoke execute on function public.set_tax_figure(integer, text, numeric) from public, anon;
+grant execute on function public.set_site_content(text, text) to authenticated;
+grant execute on function public.set_tax_figure(integer, text, numeric) to authenticated;
+
+revoke truncate, references, trigger on public.site_content         from authenticated, anon, public;
+revoke truncate, references, trigger on public.tax_figure_overrides from authenticated, anon, public;

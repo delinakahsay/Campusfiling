@@ -134,16 +134,21 @@
       </div>
 
       <details class="acct-more">
-        <summary>Change your name</summary>
-        <form id="name-form" novalidate>
+        <summary>Edit my information</summary>
+        <form id="info-form" novalidate>
           <div class="field">
             <label for="name-value">Full name</label>
             <small>Shown as your initials in the header. Leave it blank to remove it.</small>
             <input type="text" id="name-value" autocomplete="name" maxlength="80" />
           </div>
+          <div class="field">
+            <label for="change-password">New password</label>
+            <small>At least 8 characters. Leave it blank to keep your current one.</small>
+            <input type="password" id="change-password" autocomplete="new-password" minlength="8" maxlength="72" />
+          </div>
           <div class="btn-row">
-            <button type="submit" class="btn btn-green btn-sm" id="name-submit">Save name</button>
-            <span class="error" id="name-err" role="alert"></span>
+            <button type="submit" class="btn btn-green btn-sm" id="info-submit">Save changes</button>
+            <span class="error" id="info-err" role="alert"></span>
           </div>
         </form>
       </details>
@@ -164,20 +169,6 @@
         <button type="button" class="btn btn-ghost" id="signout">Sign out</button>
       </div>
 
-      <details class="acct-more">
-        <summary>Change your password</summary>
-        <form id="change-form" novalidate>
-          <div class="field">
-            <label for="change-password">New password</label>
-            <small>At least 8 characters.</small>
-            <input type="password" id="change-password" autocomplete="new-password" minlength="8" maxlength="72" required />
-          </div>
-          <div class="btn-row">
-            <button type="submit" class="btn" id="change-submit">Save new password</button>
-            <span class="error" id="change-err" role="alert"></span>
-          </div>
-        </form>
-      </details>
 
       <details class="acct-more">
         <summary>Delete your account</summary>

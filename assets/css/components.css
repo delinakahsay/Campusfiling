@@ -560,3 +560,64 @@ input[type="text"], input[type="number"], input[type="email"], input[type="passw
 }
 
 @media print { .ask-mount { display: none !important; } }
+
+/* ---------- in-place editing, tax content manager only ---------- */
+
+.edit-pen {
+  display: block;
+  background: none;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--slate);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 2px 10px;
+  margin: 4px 0 14px;
+  cursor: pointer;
+}
+
+.edit-pen:hover { color: var(--forest); border-color: var(--forest); }
+
+/* Inside a collapsed FAQ answer the button should not float loose. */
+details.qa .edit-pen { margin-left: 0; }
+
+.edit-box { margin: 6px 0 16px; }
+
+.edit-area {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  padding: 10px 12px;
+  border: 1px solid var(--forest);
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.edit-hint { font-size: 12.5px; color: var(--slate); margin: 0 0 6px; }
+
+.edit-box .btn-row { margin-top: 8px; }
+
+.figure-pen {
+  background: none;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--slate);
+  font: inherit;
+  font-size: 12px;
+  padding: 1px 8px;
+  margin-left: 10px;
+  cursor: pointer;
+}
+
+.figure-pen:hover { color: var(--forest); border-color: var(--forest); }
+
+.figure-input {
+  width: 110px;
+  font: inherit;
+  font-size: 14.5px;
+  padding: 4px 8px;
+  border: 1px solid var(--forest);
+  border-radius: 6px;
+  margin-right: 8px;
+}

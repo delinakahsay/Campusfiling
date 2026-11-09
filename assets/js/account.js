@@ -279,25 +279,42 @@
     $("forgot-form").addEventListener("submit", submitForgot);
     $("signout").addEventListener("click", signOut);
 
-    $("name-form").addEventListener("submit", async function (e) {
+    /* One form for the things a student may change about themselves:
+       the name, the password, or both in one save. The password field
+       left blank means keep the current one, so there is no separate
+       mode to find. */
+    $("info-form").addEventListener("submit", async function (e) {
       e.preventDefault();
-      const err = $("name-err");
+      const err = $("info-err");
       err.textContent = "";
-      const button = $("name-submit");
+      const name = $("name-value").value.trim();
+      const password = $("change-password").value;
+      if (password && password.length < 8) {
+        err.textContent = "A new password needs at least 8 characters, or leave it blank to keep your current one.";
+        return;
+      }
+
+      const shownName = $("info-name").textContent === "Not set" ? "" : $("info-name").textContent;
+      const button = $("info-submit");
+      const saved = [];
       busy(button, true, "Saving");
-      const r = await api("/api/auth", {
-        method: "POST", body: { action: "name", name: $("name-value").value.trim() }
-      });
+
+      if (name !== shownName) {
+        const r = await api("/api/auth", { method: "POST", body: { action: "name", name: name } });
+        if (!r.ok) { busy(button, false); err.textContent = r.data.error || "The name could not be saved."; return; }
+        $("info-name").textContent = r.data.name || "Not set";
+        saved.push("name");
+      }
+      if (password) {
+        const r = await api("/api/auth", { method: "POST", body: { action: "password", password: password } });
+        if (!r.ok) { busy(button, false); err.textContent = r.data.error || "The password could not be changed."; return; }
+        $("change-password").value = "";
+        saved.push("password");
+      }
+
       busy(button, false);
-      if (!r.ok) { err.textContent = r.data.error || "That did not work."; return; }
-      $("info-name").textContent = r.data.name || "Not set";
-      status("Name saved. Your initials update when the page reloads.", "note-good");
-    });
-    $("change-form").addEventListener("submit", function (e) {
-      e.preventDefault();
-      submitPassword("change-form", "change-password", "change-submit", "change-err", function () {
-        status("Password changed.", "note-good");
-      });
+      if (!saved.length) { err.textContent = "Nothing has changed yet."; return; }
+      status("Saved: your " + saved.join(" and ") + ". Initials update when the page next loads.", "note-good");
     });
     $("reset-form").addEventListener("submit", function (e) {
       e.preventDefault();

@@ -82,8 +82,8 @@
           <tbody id="taxyear-rows"></tbody>
         </table>
       </div>
-      <div class="note note-warn">
-        <p><strong>Read-only for now.</strong> These figures live in a versioned source file rather than the database, so changing one is a code change with a commit attached to it and a test suite that has to pass. That is deliberate for tax arithmetic: an edit box on a web page would let a wrong standard deduction reach students with nothing recording who changed it or why. Making them editable here is a real piece of work and it needs a decision about where the figures should live.</p>
+      <div class="note">
+        <p><strong>A saved change is live immediately.</strong> The walkthrough's arithmetic, the refund estimator and every figure printed on any page of the site read from here, and each change records who made it and when. The bracket table comes from the IRS release and changes with the annual content update rather than field by field, because its seven numbers have to move together.</p>
       </div>
     </section>
 
@@ -104,6 +104,7 @@
 </footer>
 
 <script src="assets/js/tax-constants.js"></script>
+<script src="assets/js/content.js"></script>
 <script src="assets/js/nav.js"></script>
 <script src="assets/js/dashboard.js"></script>
 </body>

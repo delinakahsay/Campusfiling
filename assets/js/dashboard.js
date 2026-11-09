@@ -206,7 +206,87 @@
     return td;
   }
 
-  function renderTaxYear() {
+  /* Mirrors the allowlist in the database function. The server decides;
+     this only decides which cells grow an edit control. */
+  var EDITABLE_FIGURES = [
+    "singleStandardDeduction", "dependentFloor", "dependentEarnedBump",
+    "unearnedFilingTrigger", "qualifyingRelativeIncomeTest",
+    "selfEmploymentTrigger", "aotcMax", "aotcRefundable", "llcMax",
+    "studentLoanInterestCap", "studentLoanPhaseoutStart",
+    "studentLoanPhaseoutEnd", "capitalLossLimit", "freeFileIncomeLimit",
+    "mileageFirstHalf", "mileageSecondHalf"
+  ];
+
+  function saveFigure(year, key, value) {
+    return fetch("/api/content", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ figure: { year: year, name: key, value: value } })
+    }).then(function (r) {
+      return r.json().then(function (d) { return { ok: r.ok, data: d }; });
+    });
+  }
+
+  /* Click the value, type the new one, save. The cell shows the figure
+     again the moment the database accepts it, and TAX_YEARS is updated
+     in place so the Changed column and every data-tax span agree. */
+  function editableCell(tr, year, key, how, canEdit, saved) {
+    var td = cell(tr, fmt(TAX_YEARS[year][key], how), "num");
+    if (saved && saved[year + ":" + key]) {
+      var meta = saved[year + ":" + key];
+      td.title = "Saved by " + (meta.updatedBy || "staff") +
+        (meta.updatedAt ? " on " + new Date(meta.updatedAt).toLocaleDateString("en-US") : "");
+    }
+    if (!canEdit) return;
+
+    var pen = document.createElement("button");
+    pen.type = "button";
+    pen.className = "figure-pen";
+    pen.textContent = "Edit";
+    pen.setAttribute("aria-label", "Edit this figure for " + year);
+    pen.addEventListener("click", function () {
+      var input = document.createElement("input");
+      input.type = "number";
+      input.className = "figure-input";
+      input.step = how === PERMILE ? "0.001" : "1";
+      input.min = "0";
+      input.value = String(TAX_YEARS[year][key]);
+      var ok = document.createElement("button");
+      ok.type = "button"; ok.className = "btn btn-green btn-sm"; ok.textContent = "Save";
+      var no = document.createElement("button");
+      no.type = "button"; no.className = "btn btn-ghost btn-sm"; no.textContent = "Cancel";
+      td.textContent = "";
+      td.appendChild(input); td.appendChild(ok); td.appendChild(no);
+      input.focus();
+
+      function restore() {
+        td.textContent = fmt(TAX_YEARS[year][key], how);
+        td.appendChild(pen);
+      }
+      no.addEventListener("click", restore);
+      ok.addEventListener("click", async function () {
+        var v = parseFloat(input.value);
+        if (!isFinite(v) || v < 0) { input.focus(); return; }
+        ok.disabled = true;
+        var r = await saveFigure(year, key, v);
+        ok.disabled = false;
+        if (!r.ok) {
+          say((r.data && r.data.error) || "That change could not be saved.", "note-stop");
+          restore();
+          return;
+        }
+        TAX_YEARS[year][key] = v;
+        if (typeof fillTaxSpans === "function") fillTaxSpans();
+        say("Saved. " + year + " " + key + " is now " + fmt(v, how) +
+          ", live across the site.", "note-good");
+        restore();
+      });
+    });
+    td.appendChild(pen);
+  }
+
+  function renderTaxYear(canEdit, saved) {
     if (typeof TAX_YEARS === "undefined") return false;
     var years = Object.keys(TAX_YEARS).map(Number).sort();
     if (years.length < 2) return false;
@@ -227,8 +307,9 @@
         var key = f[0], label = f[1], how = f[2];
         var tr = document.createElement("tr");
         cell(tr, label);
-        cell(tr, fmt(a[key], how), "num");
-        cell(tr, fmt(b[key], how), "num");
+        var can = canEdit && EDITABLE_FIGURES.indexOf(key) > -1;
+        editableCell(tr, years[0], key, how, can, saved);
+        editableCell(tr, years[1], key, how, can, saved);
         cell(tr, a[key] === b[key] ? "" : "Changed");
         body.appendChild(tr);
       });
@@ -280,13 +361,29 @@
     var tab = new URLSearchParams(location.search).get("tab");
     if (tab === "taxyear") {
       if (user.role !== "tax_operations") {
-        say("The tax year figures are for Campus Filing tax operations.", "note-warn");
+        say("The tax year figures are for the tax content manager.", "note-warn");
         return;
       }
+
+      /* Overrides first, so the table opens showing what is actually
+         live rather than what shipped, and each edited cell can say who
+         saved it. Applying twice is harmless, which is why this does not
+         care whether content.js got there first. */
+      var saved = {};
+      if (window.CF && window.CF.content) {
+        try {
+          var published = await window.CF.content;
+          if (window.CF.applyFigures) window.CF.applyFigures(published.figures || []);
+          (published.figures || []).forEach(function (f) {
+            saved[f.taxYear + ":" + f.figure] = f;
+          });
+        } catch (e) { /* the shipped figures still render */ }
+      }
+
       $("dash-role").textContent = ROLE_LABEL[user.role];
       $("dash-title").textContent = "Tax year figures";
-      $("dash-sub").textContent = "What the product calculates with, and what moved this year.";
-      if (renderTaxYear()) show("panel-taxyear");
+      $("dash-sub").textContent = "What the product calculates with. A saved change is live across the site immediately.";
+      if (renderTaxYear(true, saved)) show("panel-taxyear");
       else say("The tax year figures could not be loaded.", "note-stop");
       return;
     }

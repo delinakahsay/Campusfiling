@@ -236,7 +236,11 @@ const TAX_COUNT_KEYS = ["qualifyingChildAge", "studentAgeLimit",
 
 const TAX_RATE_KEYS = ["mileageFirstHalf", "mileageSecondHalf"];
 
-document.addEventListener("DOMContentLoaded", function () {
+/* Named, not anonymous, because content.js re-runs it after applying any
+   figure overrides the tax content manager has saved, so every data-tax
+   span on the site reflects the current figure rather than the shipped
+   one. */
+function fillTaxSpans() {
   document.querySelectorAll("[data-tax]").forEach(function (el) {
     const key = el.dataset.tax;
     const v = TAX[key];
@@ -249,4 +253,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (typeof v === "number") el.textContent = money(v);
   });
-});
+}
+
+document.addEventListener("DOMContentLoaded", fillTaxSpans);

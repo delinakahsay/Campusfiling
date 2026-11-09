@@ -70,13 +70,16 @@
      leaving them in the page for anyone who looks. */
   var STAFF_NAV = {
     university_admin: [
-      ["dashboard.html", "Overview"],
-      ["about.html", "About Campus Filing"]
+      ["dashboard.html", "Overview"]
     ],
+    /* The pages the tax content manager maintains are the navigation:
+       figures on the dashboard, text on the pages themselves, edited in
+       place where students will read it. */
     tax_operations: [
       ["dashboard.html", "Overview"],
       ["dashboard.html?tab=taxyear", "Tax year"],
-      ["about.html", "Methodology"]
+      ["deadlines.html", "Deadlines"],
+      ["faq.html", "FAQ"]
     ]
   };
 
@@ -125,8 +128,11 @@
     }
 
     if (!CF.isStaff(user)) {
+      /* The initials are the way to the account page, so a second link
+         saying the same thing is clutter. Signed out, the link stays,
+         because there are no initials to click yet. */
       var acct = nav.querySelector('a[href$="account.html"]');
-      if (acct) acct.textContent = "My plans";
+      if (acct) acct.remove();
       nav.insertBefore(sessionSlot(user), nav.querySelector(".nav-cta"));
       return;
     }

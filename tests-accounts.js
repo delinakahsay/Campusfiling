@@ -389,6 +389,75 @@ test("a section outside one to nine falls back rather than indexing off the end"
   assert.ok(JSON.stringify(calls[0].body).indexOf("Section 1 of 9") > -1);
 });
 
+/* ---------- editable site content ---------- */
+
+const content = require(path.join(__dirname, "api", "content.js"));
+
+test("site content is readable by anyone, as one bundle", async function () {
+  replies = [
+    { status: 200, body: [{ slot: "faq:p:3", content: "New answer." }] },
+    { status: 200, body: [{ tax_year: 2026, figure: "singleStandardDeduction", value: 16300, updated_by: "kahdelina@gmail.com", updated_at: "2026-11-09T21:00:00Z" }] }
+  ];
+  const r = res();
+  await content(req("GET", {}), r);
+  assert.strictEqual(r.statusCode, 200);
+  assert.strictEqual(r.payload.slots["faq:p:3"], "New answer.");
+  assert.strictEqual(r.payload.figures[0].value, 16300);
+  assert.ok(!("cookie" in (calls[0].init.headers || {})), "an anonymous read carries no session");
+});
+
+test("writing text without a session is refused before any upstream call", async function () {
+  const r = res();
+  await content(req("POST", {
+    headers: { origin: "https://campusfiling.vercel.app" },
+    body: { slot: "faq:p:3", content: "defaced" }
+  }), r);
+  assert.strictEqual(r.statusCode, 401);
+  assert.strictEqual(calls.length, 0);
+});
+
+test("writing from another site is refused", async function () {
+  const r = res();
+  await content(req("POST", {
+    headers: { origin: "https://example.com", cookie: "cf_at=" + jwt(3600) },
+    body: { slot: "faq:p:3", content: "defaced" }
+  }), r);
+  assert.strictEqual(r.statusCode, 403);
+  assert.strictEqual(calls.length, 0);
+});
+
+test("a slot name the pages never made is refused before the database", async function () {
+  const r = res();
+  await content(req("POST", {
+    headers: { origin: "https://campusfiling.vercel.app", cookie: "cf_at=" + jwt(3600) },
+    body: { slot: "<script>", content: "x" }
+  }), r);
+  assert.strictEqual(r.statusCode, 400);
+  assert.strictEqual(calls.length, 0);
+});
+
+test("a student saving text gets the database's refusal in plain words", async function () {
+  replies = [{ status: 400, body: { message: "not permitted" } }];
+  const r = res();
+  await content(req("POST", {
+    headers: { origin: "https://campusfiling.vercel.app", cookie: "cf_at=" + jwt(3600) },
+    body: { slot: "faq:p:3", content: "a student typed this" }
+  }), r);
+  assert.strictEqual(r.statusCode, 403);
+  assert.ok(/tax content manager/.test(r.payload.error), r.payload.error);
+});
+
+test("a figure outside the allowlist is refused by the database and translated", async function () {
+  replies = [{ status: 400, body: { message: "that figure is not editable here" } }];
+  const r = res();
+  await content(req("POST", {
+    headers: { origin: "https://campusfiling.vercel.app", cookie: "cf_at=" + jwt(3600) },
+    body: { figure: { year: 2026, name: "brackets", value: 1 } }
+  }), r);
+  assert.strictEqual(r.statusCode, 400);
+  assert.ok(/not editable/.test(r.payload.error), r.payload.error);
+});
+
 /* ---------- who may hold an account ---------- */
 
 test("a non-GW signup is refused in words a student can act on", async function () {
