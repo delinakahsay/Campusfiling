@@ -338,6 +338,132 @@
     return true;
   }
 
+  /* ---------- seats and subscription ---------- */
+
+  function money(n) {
+    return "$" + Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  }
+
+  function day(iso) {
+    if (!iso) return "not set";
+    var d = new Date(iso + (String(iso).length === 10 ? "T12:00:00Z" : ""));
+    return isNaN(d) ? "not set"
+      : d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  }
+
+  function detailRow(tbody, label, value) {
+    var tr = document.createElement("tr");
+    var th = document.createElement("th");
+    th.setAttribute("scope", "row");
+    th.textContent = label;
+    var td = document.createElement("td");
+    td.textContent = value;
+    tr.appendChild(th); tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+
+  function renderSubscription(inst) {
+    var t = $("sub-detail");
+    t.textContent = "";
+    detailRow(t, "Institution", inst.institution);
+    detailRow(t, "Term", day(inst.termStart) + " to " + day(inst.termEnd));
+    detailRow(t, "Enrolled students", num(inst.enrollment));
+    detailRow(t, "Seats licensed", num(inst.seats));
+    detailRow(t, "Seats in use", num(inst.seatsUsed));
+    detailRow(t, "Rate", inst.pricePerStudent === null ? "not set"
+      : "$" + Number(inst.pricePerStudent).toFixed(2) + " per enrolled student, per year");
+    if (inst.seats !== null && inst.pricePerStudent !== null) {
+      detailRow(t, "Annual cost", money(inst.seats * inst.pricePerStudent));
+    }
+    show("panel-subscription");
+  }
+
+  async function setSeat(userId, suspend) {
+    var r = await fetch("/api/institution", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: userId, suspend: suspend })
+    });
+    var data = await r.json();
+    return { ok: r.ok, data: data };
+  }
+
+  function renderSeats(inst, students) {
+    $("seats-intro").textContent = inst
+      ? num(inst.seatsUsed) + " of " + num(inst.seats) + " seats in use. "
+        + "Releasing a seat closes the filing tools for that student and keeps everything they saved."
+      : "Releasing a seat closes the filing tools for that student and keeps everything they saved.";
+
+    var body = $("seats-rows");
+    body.textContent = "";
+    students.forEach(function (s) {
+      var tr = document.createElement("tr");
+      cell(tr, s.email);
+      cell(tr, day(s.joined));
+      var state = cell(tr, s.suspended ? "Released" : "Active");
+      if (s.suspended) state.className = "seat-off";
+
+      var td = document.createElement("td");
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn btn-ghost btn-sm";
+      button.textContent = s.suspended ? "Restore seat" : "Release seat";
+      button.setAttribute("aria-label",
+        (s.suspended ? "Restore the seat for " : "Release the seat for ") + s.email);
+      button.addEventListener("click", async function () {
+        button.disabled = true;
+        var out = await setSeat(s.userId, !s.suspended);
+        button.disabled = false;
+        if (!out.ok) {
+          say((out.data && out.data.error) || "That change could not be saved.", "note-stop");
+          return;
+        }
+        s.suspended = out.data.suspended;
+        state.textContent = s.suspended ? "Released" : "Active";
+        state.className = s.suspended ? "seat-off" : "";
+        button.textContent = s.suspended ? "Restore seat" : "Release seat";
+        say(s.email + (s.suspended ? "'s seat is released." : "'s seat is restored."), "note-good");
+      });
+      td.appendChild(button);
+      tr.appendChild(td);
+      body.appendChild(tr);
+    });
+
+    $("seats-empty").hidden = students.length > 0;
+    show("panel-seats");
+  }
+
+  async function institutionTab(user, which) {
+    var res, data;
+    try {
+      res = await fetch("/api/institution", { credentials: "same-origin" });
+      data = await res.json();
+    } catch (e) {
+      say("The subscription service did not respond. Try again in a moment.", "note-stop");
+      return;
+    }
+    if (!res.ok) {
+      say((data && data.error) || "That could not be loaded.", "note-stop");
+      return;
+    }
+
+    var inst = (data.institutions || [])[0] || null;
+    $("dash-role").textContent = ROLE_LABEL[user.role] || "Dashboard";
+
+    if (which === "subscription") {
+      $("dash-title").textContent = "Subscription";
+      $("dash-sub").textContent = "What your institution licenses, and how much of it is in use.";
+      if (!inst) { say("No subscription is on file for your institution.", "note-warn"); return; }
+      renderSubscription(inst);
+      return;
+    }
+
+    $("dash-title").textContent = "Student access";
+    $("dash-sub").textContent = "Who holds a seat on your subscription.";
+    renderSeats(inst, data.students || []);
+  }
+
   async function start() {
     var user = null;
     try {
@@ -359,6 +485,12 @@
     /* The tax year view is tax operations' own, and it needs no server
        call: the figures ship with the site. */
     var tab = new URLSearchParams(location.search).get("tab");
+
+    if (tab === "seats" || tab === "subscription") {
+      await institutionTab(user, tab);
+      return;
+    }
+
     if (tab === "taxyear") {
       if (user.role !== "tax_operations") {
         say("The tax year figures are for the tax content manager.", "note-warn");

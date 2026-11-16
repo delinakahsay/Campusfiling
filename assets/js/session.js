@@ -70,7 +70,9 @@
      leaving them in the page for anyone who looks. */
   var STAFF_NAV = {
     university_admin: [
-      ["dashboard.html", "Overview"]
+      ["dashboard.html", "Overview"],
+      ["dashboard.html?tab=seats", "Student access"],
+      ["dashboard.html?tab=subscription", "Subscription"]
     ],
     /* The pages the tax content manager maintains are the navigation:
        figures on the dashboard, text on the pages themselves, edited in

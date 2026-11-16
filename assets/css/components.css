@@ -621,3 +621,5 @@ details.qa .edit-pen { margin-left: 0; }
   border-radius: 6px;
   margin-right: 8px;
 }
+
+.seat-off { color: var(--rust); }

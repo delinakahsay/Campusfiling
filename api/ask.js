@@ -131,7 +131,7 @@ module.exports = async function handler(req, res) {
     return sb.send(res, 403, { error: "That request did not come from this site." });
   }
 
-  const token = await sb.requireSession(req, res);
+  const token = await sb.requireSession(req, res, { active: true });
   if (!token) return;
 
   let body = req.body;

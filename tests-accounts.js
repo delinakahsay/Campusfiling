@@ -302,6 +302,17 @@ test("neither endpoint leaks why it refused", async function () {
   assert.ok(!/token|cookie|supabase/i.test(JSON.stringify(r.payload)), r.payload.error);
 });
 
+/* requireSession({active:true}) asks the database whether the seat is
+   still active before anything else happens, so every stubbed call that
+   reaches one of those endpoints needs this reply first. */
+/* The model call is no longer the first call: the seat check precedes
+   it. Find it rather than counting on position. */
+function modelCall() {
+  return calls.filter(function (c) { return /anthropic/i.test(c.url || ""); })[0];
+}
+
+const ACTIVE = { status: 200, body: [{ role: "student", institution: "GW", full_name: "S", suspended: false }] };
+
 /* ---------- the walkthrough assistant ---------- */
 
 const ask = require(path.join(__dirname, "api", "ask.js"));
@@ -338,13 +349,14 @@ test("an overlong question is refused before it reaches the model", async functi
     body: { question: "x".repeat(501) }
   }), r);
   assert.strictEqual(r.statusCode, 413);
-  assert.strictEqual(calls.length, 0);
+  assert.ok(!calls.some(function (c) { return /anthropic/i.test(c.url || ""); }),
+    "an overlong question must not reach the model");
 });
 
 /* The walkthrough has no field for any of these, so neither the prompt
    nor the context may carry one even if a crafted request supplies it. */
 test("nothing identifying is forwarded, whatever the caller puts in context", async function () {
-  replies = [{ status: 200, body: { content: [{ type: "tool_use", name: "answer",
+  replies = [ACTIVE, { status: 200, body: { content: [{ type: "tool_use", name: "answer",
     input: { reply: "Box 1 holds your wages.", in_scope: true } }] } }];
   const r = res();
   await ask(asked({
@@ -357,7 +369,7 @@ test("nothing identifying is forwarded, whatever the caller puts in context", as
     }
   }), r);
   assert.strictEqual(r.statusCode, 200);
-  const sent = JSON.stringify(calls[0].body);
+  const sent = JSON.stringify(modelCall().body);
   ["123-45-6789", "GW Dining", "2121 I St", "Delina"].forEach(function (leak) {
     assert.ok(sent.indexOf(leak) === -1, "forwarded " + leak);
   });
@@ -365,7 +377,7 @@ test("nothing identifying is forwarded, whatever the caller puts in context", as
 });
 
 test("an out-of-scope question comes back as a refusal, not an answer", async function () {
-  replies = [{ status: 200, body: { content: [{ type: "tool_use", name: "answer",
+  replies = [ACTIVE, { status: 200, body: { content: [{ type: "tool_use", name: "answer",
     input: { reply: "", in_scope: false, refusal: "I only help with filing taxes as a student." } }] } }];
   const r = res();
   await ask(asked({
@@ -378,7 +390,7 @@ test("an out-of-scope question comes back as a refusal, not an answer", async fu
 });
 
 test("a section outside one to nine falls back rather than indexing off the end", async function () {
-  replies = [{ status: 200, body: { content: [{ type: "tool_use", name: "answer",
+  replies = [ACTIVE, { status: 200, body: { content: [{ type: "tool_use", name: "answer",
     input: { reply: "Start at the beginning.", in_scope: true } }] } }];
   const r = res();
   await ask(asked({
@@ -386,7 +398,88 @@ test("a section outside one to nine falls back rather than indexing off the end"
     body: { question: "Where do I start?", section: 99 }
   }), r);
   assert.strictEqual(r.statusCode, 200);
-  assert.ok(JSON.stringify(calls[0].body).indexOf("Section 1 of 9") > -1);
+  assert.ok(JSON.stringify(modelCall().body).indexOf("Section 1 of 9") > -1);
+});
+
+/* ---------- seats and subscription ---------- */
+
+const institution = require(path.join(__dirname, "api", "institution.js"));
+
+const SIGNED_IN = { cookie: "cf_at=" + jwt(3600) };
+const FROM_SITE = { origin: "https://campusfiling.vercel.app" };
+
+test("the roster carries no column that could expose a student's taxes", async function () {
+  replies = [
+    { status: 200, body: [{ institution: "GW", enrollment: 25374, seats: 25374,
+      price_per_student: 2, term_start: "2026-08-01", term_end: "2027-07-31", seats_used: 3 }] },
+    { status: 200, body: [{ user_id: "11111111-1111-1111-1111-111111111111",
+      email: "s@gwmail.gwu.edu", joined: "2026-11-09T20:00:00Z", suspended: false }] }
+  ];
+  const r = res();
+  await institution(req("GET", { headers: SIGNED_IN }), r);
+  assert.strictEqual(r.statusCode, 200);
+  const keys = Object.keys(r.payload.students[0]).join(",");
+  ["plan", "refund", "income", "answers", "summary", "document"].forEach(function (leak) {
+    assert.ok(keys.toLowerCase().indexOf(leak) === -1, "roster exposes " + leak + ": " + keys);
+  });
+  assert.strictEqual(r.payload.institutions[0].seatsUsed, 3);
+});
+
+test("a student asking for the roster is refused, not given an empty one", async function () {
+  replies = [{ status: 400, body: { message: "not permitted" } }];
+  const r = res();
+  await institution(req("GET", { headers: SIGNED_IN }), r);
+  assert.strictEqual(r.statusCode, 403);
+  assert.ok(/staff/i.test(r.payload.error), r.payload.error);
+});
+
+test("changing a seat without a session is refused before any upstream call", async function () {
+  const r = res();
+  await institution(req("POST", {
+    headers: FROM_SITE,
+    body: { userId: "11111111-1111-1111-1111-111111111111", suspend: true }
+  }), r);
+  assert.strictEqual(r.statusCode, 401);
+  assert.strictEqual(calls.length, 0);
+});
+
+test("an administrator reaching into another institution is refused by the database", async function () {
+  replies = [{ status: 400, body: { message: "not permitted" } }];
+  const r = res();
+  await institution(req("POST", {
+    headers: Object.assign({}, FROM_SITE, SIGNED_IN),
+    body: { userId: "99999999-9999-9999-9999-999999999999", suspend: true }
+  }), r);
+  assert.strictEqual(r.statusCode, 403);
+  assert.ok(/your own institution/i.test(r.payload.error), r.payload.error);
+});
+
+test("a malformed account id never reaches the database", async function () {
+  const r = res();
+  await institution(req("POST", {
+    headers: Object.assign({}, FROM_SITE, SIGNED_IN),
+    body: { userId: "'; drop table profiles; --", suspend: true }
+  }), r);
+  assert.strictEqual(r.statusCode, 400);
+  assert.strictEqual(calls.length, 0);
+});
+
+/* A released seat closes the tools. It must not close the student out of
+   the answers they already saved, which are theirs. */
+test("a released seat is refused by the endpoints that spend credits", async function () {
+  replies = [{ status: 200, body: [{ role: "student", institution: "GW", full_name: "S", suspended: true }] }];
+  const r = res();
+  await readDoc(req("POST", { headers: SIGNED_IN, body: { text: "Wages 12000" } }), r);
+  assert.strictEqual(r.statusCode, 403);
+  assert.strictEqual(r.payload.suspended, true);
+  assert.ok(!calls.some(function (c) { return /anthropic/i.test(c.url || ""); }), "no model call for a released seat");
+});
+
+test("a released seat still reaches its own saved plans", async function () {
+  replies = [{ status: 200, body: [{ tax_year: 2026, updated_at: "2026-11-09T20:00:00Z", summary: null }] }];
+  const r = res();
+  await plans(req("GET", { headers: SIGNED_IN }), r);
+  assert.strictEqual(r.statusCode, 200, "losing a seat is losing the tools, not the data");
 });
 
 /* ---------- editable site content ---------- */

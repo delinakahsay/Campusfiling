@@ -209,11 +209,28 @@ module.exports = {
    money per request, which makes them the only ones worth shutting to
    strangers. Returns the caller's token, or sends the refusal and returns
    null, in which case the handler should return immediately. */
-async function requireSession(req, res) {
+async function requireSession(req, res, options) {
   const token = await sessionToken(req, res);
   if (!token) {
     send(res, 401, { error: "Sign in to use this.", signin: true });
     return null;
+  }
+
+  /* `active` is for the endpoints a released seat should close: the
+     tools, and the two that spend credits. It is deliberately not
+     applied to the plans endpoint, because a student whose seat was
+     released still owns the answers they saved and must be able to read
+     or delete them. Losing a seat is losing the tools, not the data. */
+  if (options && options.active) {
+    const who = await call("/rest/v1/rpc/my_role", { method: "POST", token: token, body: {} });
+    const row = Array.isArray(who.data) ? who.data[0] : who.data;
+    if (row && row.suspended === true) {
+      send(res, 403, {
+        error: "Your university has released this seat. Contact your student services office.",
+        suspended: true
+      });
+      return null;
+    }
   }
   return token;
 }

@@ -84,9 +84,36 @@
         })
         .then(function (d) { return (d && d.user) || null; });
 
+  /* A released seat is not a sign-in problem, so sending them to the
+     sign-in page would be a loop: they are signed in, and signing in
+     again changes nothing. Say what happened and who can undo it. */
+  function seatReleased() {
+    var wrap = doc.createElement("div");
+    wrap.id = "gate-msg";
+    wrap.setAttribute("role", "alert");
+    wrap.style.cssText =
+      "max-width:34rem;margin:14vh auto;padding:28px 30px;font:16px/1.65 system-ui,sans-serif;" +
+      "border:1px solid #D8D4CC;border-radius:10px;background:#fff;color:#1B2B44";
+    var h = doc.createElement("h1");
+    h.style.cssText = "margin:0 0 10px;font-size:22px";
+    h.textContent = "Your university has released this seat";
+    var p = doc.createElement("p");
+    p.style.cssText = "margin:0 0 16px;color:#5A6470";
+    p.textContent = "The filing tools are closed on this account. Anything you saved is still yours: "
+      + "you can open, download or delete it from your account page. To have the seat restored, "
+      + "contact your student services office.";
+    var a = doc.createElement("a");
+    a.href = accountUrl;
+    a.textContent = "Go to my account";
+    a.style.cssText = "color:#1C6B4A;font-weight:600";
+    wrap.appendChild(h); wrap.appendChild(p); wrap.appendChild(a);
+    (doc.body || doc.documentElement).appendChild(wrap);
+  }
+
   asking
     .then(function (user) {
       clearTimeout(failsafe);
+      if (user && user.suspended) { seatReleased(); return; }
       if (user) { reveal(); return; }
       toAccount();
     })

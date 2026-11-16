@@ -201,7 +201,7 @@ module.exports = async function handler(req, res) {
 
   /* Spends Anthropic credits, so it is closed to strangers for the same
      reason as the document reader. */
-  const token = await sb.requireSession(req, res);
+  const token = await sb.requireSession(req, res, { active: true });
   if (!token) return;
 
   let body = req.body;

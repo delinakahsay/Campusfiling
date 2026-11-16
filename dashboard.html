@@ -67,6 +67,36 @@
       </div>
     </div>
 
+    <section id="panel-subscription" hidden>
+      <div class="table-wrap">
+        <table class="data">
+          <caption class="sr-only">Your Campus Filing subscription</caption>
+          <tbody id="sub-detail"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="panel-seats" hidden>
+      <p id="seats-intro"></p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th scope="col">Student</th>
+              <th scope="col">Account created</th>
+              <th scope="col">Seat</th>
+              <th scope="col"><span class="sr-only">Action</span></th>
+            </tr>
+          </thead>
+          <tbody id="seats-rows"></tbody>
+        </table>
+      </div>
+      <p id="seats-empty" hidden>No student accounts yet. Students appear here when they sign up with a university email address.</p>
+      <div class="note">
+        <p><strong>This list shows who holds a seat, and nothing about their taxes.</strong> There is no column here for whether a student saved a plan, and no query this page can send would return one. Managing seats needs to name people; the usage report needs numbers; keeping the two apart is what stops this page revealing that a named student used a tax service.</p>
+      </div>
+    </section>
+
     <section id="panel-taxyear" hidden>
       <p>Every dollar figure and threshold the product calculates with, for both years it supports. Nothing elsewhere in the codebase holds a number of its own, so this is the complete list to verify against the IRS release each season.</p>
       <div class="table-wrap">

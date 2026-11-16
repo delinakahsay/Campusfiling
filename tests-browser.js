@@ -105,6 +105,13 @@ async function main() {
   /* Site content, stubbed empty. The real endpoint is covered by
      tests-accounts.js; here every page just needs its fetch to resolve
      so the shipped text renders and nothing logs a failed resource. */
+  /* Seats and subscription, stubbed. The real endpoint is covered by
+     tests-accounts.js; the browser suite only needs the fetch to resolve. */
+  await page.context().route("**/api/institution", function (route) {
+    route.fulfill({ status: 200, contentType: "application/json",
+      body: JSON.stringify({ institutions: [], students: [] }) });
+  });
+
   await page.context().route("**/api/content", function (route) {
     if (route.request().method() === "GET") {
       return route.fulfill({ status: 200, contentType: "application/json",

@@ -75,6 +75,14 @@ create table if not exists public.profiles (
 alter table public.profiles
   add column if not exists full_name text;
 
+-- A suspended student keeps their saved plans and simply cannot reach
+-- the tools. Releasing a seat should not destroy the work done on it.
+-- Declared here rather than beside the seat functions below, because
+-- my_role() reads it and a SQL function's body is checked when it is
+-- created, not when it first runs.
+alter table public.profiles
+  add column if not exists suspended boolean not null default false;
+
 -- A short, readable version of the plan, captured when the student saves
 -- rather than recomputed later. The walkthrough has already done the
 -- arithmetic at that moment, and recomputing it anywhere else would mean
@@ -244,9 +252,10 @@ drop function if exists public.my_role();
 drop function if exists public.institution_usage();
 
 create or replace function public.my_role()
-returns table (role text, institution text, full_name text)
+returns table (role text, institution text, full_name text, suspended boolean)
 language sql stable security definer set search_path = '' as $$
-  select coalesce(p.role, 'student'), i.name, p.full_name
+  select coalesce(p.role, 'student'), i.name, p.full_name,
+         coalesce(p.suspended, false)
     from public.profiles p
     left join public.institutions i on i.id = p.institution_id
    where p.user_id = auth.uid();
@@ -449,3 +458,132 @@ grant execute on function public.set_tax_figure(integer, text, numeric) to authe
 
 revoke truncate, references, trigger on public.site_content         from authenticated, anon, public;
 revoke truncate, references, trigger on public.tax_figure_overrides from authenticated, anon, public;
+
+-- ---------------------------------------------- seats and subscription
+
+-- The use case gives the University Administrator three jobs: view usage
+-- reports, manage the subscription, and control which students have
+-- access. The first was built on counts. These are the other two.
+
+alter table public.institutions
+  add column if not exists seats             integer,
+  add column if not exists price_per_student numeric(10,2),
+  add column if not exists term_start        date,
+  add column if not exists term_end          date;
+
+update public.institutions
+   set seats = coalesce(seats, 25374),
+       price_per_student = coalesce(price_per_student, 2.00),
+       term_start = coalesce(term_start, date '2026-08-01'),
+       term_end   = coalesce(term_end,   date '2027-07-31')
+ where slug = 'gwu';
+
+-- The roster an administrator needs to manage seats: who holds one, and
+-- whether it is active. Deliberately NOT whether they saved a plan.
+--
+-- That line is the point. Seat management needs identity; usage
+-- reporting needs numbers; keeping them apart is what stops an
+-- administrator learning that a NAMED student used a tax service. The
+-- counts come from institution_usage, which names nobody, and this
+-- names people but knows nothing about their taxes. Neither query can
+-- be joined into the other from an administrator's session, because
+-- neither returns the other's column.
+create or replace function public.institution_roster()
+returns table (
+  user_id    uuid,
+  email      text,
+  joined     timestamptz,
+  suspended  boolean
+)
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  caller_role text;
+  caller_inst uuid;
+begin
+  select p.role, p.institution_id into caller_role, caller_inst
+    from public.profiles p where p.user_id = auth.uid();
+
+  if caller_role is null then raise exception 'not signed in'; end if;
+  if caller_role not in ('university_admin', 'tax_operations') then
+    raise exception 'not permitted';
+  end if;
+
+  return query
+    select p.user_id, lower(u.email), p.created_at, p.suspended
+      from public.profiles p
+      join auth.users u on u.id = p.user_id
+     where p.role = 'student'
+       and (caller_role = 'tax_operations' or p.institution_id = caller_inst)
+     order by u.email;
+end;
+$$;
+
+create or replace function public.set_student_access(target uuid, suspend boolean)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  caller_role text;
+  caller_inst uuid;
+  target_inst uuid;
+  target_role text;
+begin
+  select p.role, p.institution_id into caller_role, caller_inst
+    from public.profiles p where p.user_id = auth.uid();
+  if caller_role not in ('university_admin', 'tax_operations') then
+    raise exception 'not permitted';
+  end if;
+
+  select p.institution_id, p.role into target_inst, target_role
+    from public.profiles p where p.user_id = target;
+  if target_role is distinct from 'student' then
+    raise exception 'not permitted';
+  end if;
+  -- An administrator governs their own institution's seats and no other's.
+  if caller_role = 'university_admin' and target_inst is distinct from caller_inst then
+    raise exception 'not permitted';
+  end if;
+
+  update public.profiles set suspended = suspend where user_id = target;
+end;
+$$;
+
+-- What the administrator is paying for, and what they are using of it.
+create or replace function public.my_institution()
+returns table (
+  institution       text,
+  enrollment        integer,
+  seats             integer,
+  price_per_student numeric,
+  term_start        date,
+  term_end          date,
+  seats_used        bigint
+)
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  caller_role text;
+  caller_inst uuid;
+begin
+  select p.role, p.institution_id into caller_role, caller_inst
+    from public.profiles p where p.user_id = auth.uid();
+  if caller_role not in ('university_admin', 'tax_operations') then
+    raise exception 'not permitted';
+  end if;
+
+  return query
+    select i.name, i.enrollment, i.seats, i.price_per_student,
+           i.term_start, i.term_end,
+           (select count(*) from public.profiles p2
+             where p2.institution_id = i.id
+               and p2.role = 'student'
+               and p2.suspended = false)
+      from public.institutions i
+     where caller_role = 'tax_operations' or i.id = caller_inst
+     order by i.name;
+end;
+$$;
+
+revoke execute on function public.institution_roster()               from public, anon;
+revoke execute on function public.set_student_access(uuid, boolean)  from public, anon;
+revoke execute on function public.my_institution()                   from public, anon;
+grant  execute on function public.institution_roster()               to authenticated;
+grant  execute on function public.set_student_access(uuid, boolean)  to authenticated;
+grant  execute on function public.my_institution()                   to authenticated;

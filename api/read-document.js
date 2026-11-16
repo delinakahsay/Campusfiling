@@ -132,7 +132,7 @@ module.exports = async function handler(req, res) {
      Everything else about the request is unchanged: the token is used to
      establish that someone is signed in and to attribute the read, never
      to look up anything about them. */
-  const token = await sb.requireSession(req, res);
+  const token = await sb.requireSession(req, res, { active: true });
   if (!token) return;
 
   let body = req.body;

@@ -47,11 +47,14 @@ function returnUrl(req) {
 async function roleFor(token) {
   const r = await sb.call("/rest/v1/rpc/my_role", { method: "POST", token: token, body: {} });
   const row = Array.isArray(r.data) ? r.data[0] : r.data;
-  if (r.status !== 200 || !row) return { role: "student", institution: null, name: null };
+  if (r.status !== 200 || !row) {
+    return { role: "student", institution: null, name: null, suspended: false };
+  }
   return {
     role: typeof row.role === "string" ? row.role : "student",
     institution: typeof row.institution === "string" ? row.institution : null,
-    name: typeof row.full_name === "string" ? row.full_name : null
+    name: typeof row.full_name === "string" ? row.full_name : null,
+    suspended: row.suspended === true
   };
 }
 
@@ -65,6 +68,7 @@ async function whoami(req, res) {
     who.role = extra.role;
     who.institution = extra.institution;
     who.name = extra.name;
+    who.suspended = extra.suspended;
     return sb.send(res, 200, { user: who });
   }
   if (r.status === 401 || r.status === 403 || r.status === 404) {
